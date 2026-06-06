@@ -142,6 +142,13 @@ export default function App() {
         role: 'admin'
       },
       {
+        id: 'user-admin-joxadevoo',
+        name: 'Joxadevoo (Admin)',
+        email: 'joxadevoo@gmail.com',
+        password: 'admin123',
+        role: 'admin'
+      },
+      {
         id: 'user-seller-1',
         name: 'Sotuvchi',
         email: 'sotuvchi@vidalita.uz',
@@ -211,11 +218,13 @@ export default function App() {
         try {
           userCredential = await signInWithEmailAndPassword(auth, email, password);
         } catch (authErr) {
-          if ((authErr.code === 'auth/user-not-found' || authErr.code === 'auth/invalid-credential') && email === 'admin@vidalita.uz' && password === 'admin123') {
+          if ((authErr.code === 'auth/user-not-found' || authErr.code === 'auth/invalid-credential') && 
+              (email.toLowerCase() === 'admin@vidalita.uz' || email.toLowerCase() === 'joxadevoo@gmail.com') && 
+              password === 'admin123') {
             userCredential = await createUserWithEmailAndPassword(auth, email, password);
             await setDoc(doc(db, 'users', userCredential.user.uid), {
-              name: "Diyora (Admin)",
-              email: "admin@vidalita.uz",
+              name: email.toLowerCase() === 'joxadevoo@gmail.com' ? "Joxadevoo (Admin)" : "Diyora (Admin)",
+              email: email.toLowerCase(),
               role: "admin"
             });
           } else {
@@ -228,19 +237,19 @@ export default function App() {
           const userData = userDoc.data();
           const loggedIn = {
             uid: userCredential.user.uid,
-            name: userData.name || "Admin",
+            name: userData.name || (email.toLowerCase() === 'joxadevoo@gmail.com' ? "Joxadevoo (Admin)" : "Admin"),
             email: email,
-            role: userData.role || "sotuvchi"
+            role: userData.role || ((email.toLowerCase() === 'admin@vidalita.uz' || email.toLowerCase() === 'joxadevoo@gmail.com') ? 'admin' : 'sotuvchi')
           };
           setCurrentUser(loggedIn);
           localStorage.setItem('beauty_current_user', JSON.stringify(loggedIn));
-          showToast("Muvaffaqiyatli kirildi", `${userData.name || 'Admin'} xush kelibsiz!`, "success");
+          showToast("Muvaffaqiyatli kirildi", `${loggedIn.name} xush kelibsiz!`, "success");
         } else {
           const fallbackUser = {
             uid: userCredential.user.uid,
-            name: email.split('@')[0],
+            name: email.toLowerCase() === 'joxadevoo@gmail.com' ? "Joxadevoo (Admin)" : email.split('@')[0],
             email: email,
-            role: email === 'admin@vidalita.uz' ? 'admin' : 'sotuvchi'
+            role: (email.toLowerCase() === 'admin@vidalita.uz' || email.toLowerCase() === 'joxadevoo@gmail.com') ? 'admin' : 'sotuvchi'
           };
           await setDoc(doc(db, 'users', userCredential.user.uid), {
             name: fallbackUser.name,
@@ -260,7 +269,19 @@ export default function App() {
         }
       }
     } else {
-      const foundUser = users.find(u => u.email.toLowerCase() === email.toLowerCase() && u.password === password);
+      let foundUser = users.find(u => u.email.toLowerCase() === email.toLowerCase() && u.password === password);
+      if (!foundUser && email.toLowerCase() === 'joxadevoo@gmail.com' && password === 'admin123') {
+        foundUser = {
+          id: 'user-admin-joxadevoo',
+          name: 'Joxadevoo (Admin)',
+          email: 'joxadevoo@gmail.com',
+          password: 'admin123',
+          role: 'admin'
+        };
+        const updatedUsers = [...users, foundUser];
+        setUsers(updatedUsers);
+        localStorage.setItem('beauty_users', JSON.stringify(updatedUsers));
+      }
       if (foundUser) {
         const loggedIn = {
           uid: foundUser.id,
@@ -376,16 +397,33 @@ export default function App() {
               const userData = userDoc.data();
               const loggedIn = {
                 uid: user.uid,
-                name: userData.name || user.email.split('@')[0],
+                name: userData.name || (user.email.toLowerCase() === 'joxadevoo@gmail.com' ? "Joxadevoo (Admin)" : user.email.split('@')[0]),
                 email: user.email,
-                role: userData.role || 'sotuvchi'
+                role: userData.role || ((user.email.toLowerCase() === 'admin@vidalita.uz' || user.email.toLowerCase() === 'joxadevoo@gmail.com') ? 'admin' : 'sotuvchi')
               };
               setCurrentUser(loggedIn);
               localStorage.setItem('beauty_current_user', JSON.stringify(loggedIn));
             } else {
-              await signOut(auth);
-              setCurrentUser(null);
-              localStorage.removeItem('beauty_current_user');
+              if (user.email.toLowerCase() === 'admin@vidalita.uz' || user.email.toLowerCase() === 'joxadevoo@gmail.com') {
+                const adminDoc = {
+                  name: user.email.toLowerCase() === 'joxadevoo@gmail.com' ? "Joxadevoo (Admin)" : "Diyora (Admin)",
+                  email: user.email,
+                  role: 'admin'
+                };
+                await setDoc(doc(db, 'users', user.uid), adminDoc);
+                const loggedIn = {
+                  uid: user.uid,
+                  name: adminDoc.name,
+                  email: user.email,
+                  role: 'admin'
+                };
+                setCurrentUser(loggedIn);
+                localStorage.setItem('beauty_current_user', JSON.stringify(loggedIn));
+              } else {
+                await signOut(auth);
+                setCurrentUser(null);
+                localStorage.removeItem('beauty_current_user');
+              }
             }
           } catch (err) {
             console.error("Error fetching user role on auth state change:", err);
@@ -2629,7 +2667,7 @@ service cloud.firestore {
                           </span>
                         </td>
                         <td style={{ textAlign: 'center' }}>
-                          {u.email !== currentUser.email && u.email !== 'admin@vidalita.uz' ? (
+                          {u.email !== currentUser.email && u.email.toLowerCase() !== 'admin@vidalita.uz' && u.email.toLowerCase() !== 'joxadevoo@gmail.com' ? (
                             <button
                               type="button"
                               className="btn btn-secondary"
