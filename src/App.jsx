@@ -165,6 +165,40 @@ export default function App() {
   });
   const [isAddUserModalOpen, setIsAddUserModalOpen] = useState(false);
 
+  // --- So'm formatlash yordamchisi ---
+  const formatSum = (amount) =>
+    new Intl.NumberFormat('uz-UZ', { maximumFractionDigits: 0 }).format(Math.round(amount)) + " so'm";
+
+  // --- UI Control State ---
+  const [activeTab, setActiveTab] = useState('pos');
+  const [searchTerm, setSearchTerm] = useState('');
+  const [categoryFilter, setCategoryFilter] = useState('All');
+  const [expandedProduct, setExpandedProduct] = useState(null);
+
+  // --- Toast Alerts ---
+  const [toasts, setToasts] = useState([]);
+
+  const showToast = (title, desc, type = 'info') => {
+    const id = Date.now() + Math.random().toString(36).substr(2, 9);
+    setToasts(prev => [...prev, { id, title, desc, type }]);
+    setTimeout(() => {
+      setToasts(prev => prev.filter(t => t.id !== id));
+    }, 4000);
+  };
+
+  // --- POS Specific Controls ---
+  const [posSearchTerm, setPosSearchTerm] = useState('');
+  const [posCategoryFilter, setPosCategoryFilter] = useState('All');
+  const [selectedCustomer, setSelectedCustomer] = useState({ name: '', phone: '' });
+  const [paymentMethod, setPaymentMethod] = useState('Naqd (Cash)');
+  const [customDiscount, setCustomDiscount] = useState(0);
+
+  // --- Modal Control ---
+  const [activeModal, setActiveModal] = useState(null);
+  const [modalInputs, setModalInputs] = useState({});
+  const [modalError, setModalError] = useState('');
+  const [activePOSInvoice, setActivePOSInvoice] = useState(null);
+
   const handleLogin = async (e) => {
     e.preventDefault();
     setLoginError('');
@@ -362,39 +396,7 @@ export default function App() {
     }
   }, [firebaseActive]);
 
-  // --- So'm formatlash yordamchisi ---
-  const formatSum = (amount) =>
-    new Intl.NumberFormat('uz-UZ', { maximumFractionDigits: 0 }).format(Math.round(amount)) + " so'm";
 
-  // --- UI Control State ---
-  const [activeTab, setActiveTab] = useState('pos');
-  const [searchTerm, setSearchTerm] = useState('');
-  const [categoryFilter, setCategoryFilter] = useState('All');
-  const [expandedProduct, setExpandedProduct] = useState(null);
-
-  // --- Toast Alerts ---
-  const [toasts, setToasts] = useState([]);
-
-  const showToast = (title, desc, type = 'info') => {
-    const id = Date.now() + Math.random().toString(36).substr(2, 9);
-    setToasts(prev => [...prev, { id, title, desc, type }]);
-    setTimeout(() => {
-      setToasts(prev => prev.filter(t => t.id !== id));
-    }, 4000);
-  };
-
-  // --- POS Specific Controls ---
-  const [posSearchTerm, setPosSearchTerm] = useState('');
-  const [posCategoryFilter, setPosCategoryFilter] = useState('All');
-  const [selectedCustomer, setSelectedCustomer] = useState({ name: '', phone: '' });
-  const [paymentMethod, setPaymentMethod] = useState('Naqd (Cash)');
-  const [customDiscount, setCustomDiscount] = useState(0);
-
-  // --- Modal Control ---
-  const [activeModal, setActiveModal] = useState(null);
-  const [modalInputs, setModalInputs] = useState({});
-  const [modalError, setModalError] = useState('');
-  const [activePOSInvoice, setActivePOSInvoice] = useState(null);
 
   // --- Current Simulated System Date ---
   const todayDateStr = "2026-06-04";
