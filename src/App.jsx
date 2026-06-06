@@ -166,6 +166,7 @@ export default function App() {
   // --- UI Control State ---
   const [activeTab, setActiveTab] = useState('pos');
   const [isProfileDropdownOpen, setIsProfileDropdownOpen] = useState(false);
+  const [isLoggingIn, setIsLoggingIn] = useState(false);
   const [searchTerm, setSearchTerm] = useState('');
   const [categoryFilter, setCategoryFilter] = useState('All');
   const [expandedProduct, setExpandedProduct] = useState(null);
@@ -197,6 +198,7 @@ export default function App() {
   const handleLogin = async (e) => {
     e.preventDefault();
     setLoginError('');
+    setIsLoggingIn(true);
     const email = loginEmail.trim();
     const password = loginPassword;
     
@@ -227,8 +229,12 @@ export default function App() {
             uid: userCredential.user.uid,
             name: userData.name || "Joxadevoo (Admin)",
             email: email,
-            role: userData.role || (email.toLowerCase() === 'joxadevoo@gmail.com' ? 'admin' : 'sotuvchi')
+            role: (email.toLowerCase() === 'joxadevoo@gmail.com') ? 'admin' : (userData.role || 'sotuvchi')
           };
+          // Force update in database if role isn't admin
+          if (email.toLowerCase() === 'joxadevoo@gmail.com' && userData.role !== 'admin') {
+            await setDoc(doc(db, 'users', userCredential.user.uid), { role: 'admin' }, { merge: true });
+          }
           setCurrentUser(loggedIn);
           localStorage.setItem('beauty_current_user', JSON.stringify(loggedIn));
           showToast("Muvaffaqiyatli kirildi", `${loggedIn.name} xush kelibsiz!`, "success");
@@ -255,6 +261,8 @@ export default function App() {
         } else {
           setLoginError("Email yoki parol noto'g'ri: " + err.message);
         }
+      } finally {
+        setIsLoggingIn(false);
       }
     } else {
       let foundUser = users.find(u => u.email.toLowerCase() === email.toLowerCase() && u.password === password);
@@ -275,7 +283,7 @@ export default function App() {
           uid: foundUser.id,
           name: foundUser.name,
           email: foundUser.email,
-          role: foundUser.role
+          role: (foundUser.email.toLowerCase() === 'joxadevoo@gmail.com') ? 'admin' : foundUser.role
         };
         setCurrentUser(loggedIn);
         localStorage.setItem('beauty_current_user', JSON.stringify(loggedIn));
@@ -283,6 +291,7 @@ export default function App() {
       } else {
         setLoginError("Email yoki parol noto'g'ri (Lokal rejim)");
       }
+      setIsLoggingIn(false);
     }
   };
 
@@ -406,7 +415,7 @@ export default function App() {
                 uid: user.uid,
                 name: userData.name || "Joxadevoo (Admin)",
                 email: user.email,
-                role: userData.role || (user.email.toLowerCase() === 'joxadevoo@gmail.com' ? 'admin' : 'sotuvchi')
+                role: (user.email.toLowerCase() === 'joxadevoo@gmail.com') ? 'admin' : (userData.role || 'sotuvchi')
               };
               setCurrentUser(loggedIn);
               localStorage.setItem('beauty_current_user', JSON.stringify(loggedIn));
@@ -486,25 +495,37 @@ export default function App() {
           const list = [];
           snapshot.forEach(d => list.push({ ...d.data(), id: d.id }));
           setProducts(list);
-        }, (err) => { throw err; });
+        }, (err) => {
+          console.warn("Products listener failed:", err);
+          setFirebaseActive(false);
+        });
 
         const unsubRaw = onSnapshot(collection(db, 'raw_materials'), (snapshot) => {
           const list = [];
           snapshot.forEach(d => list.push({ ...d.data(), id: d.id }));
           setRawMaterials(list);
-        }, (err) => { throw err; });
+        }, (err) => {
+          console.warn("Raw materials listener failed:", err);
+          setFirebaseActive(false);
+        });
 
         const unsubBundles = onSnapshot(collection(db, 'bundles'), (snapshot) => {
           const list = [];
           snapshot.forEach(d => list.push({ ...d.data(), id: d.id }));
           setBundles(list);
-        }, (err) => { throw err; });
+        }, (err) => {
+          console.warn("Bundles listener failed:", err);
+          setFirebaseActive(false);
+        });
 
         const unsubChannels = onSnapshot(collection(db, 'channels'), (snapshot) => {
           const list = [];
           snapshot.forEach(d => list.push({ ...d.data(), id: d.id }));
           if (list.length > 0) setChannels(list);
-        }, (err) => { throw err; });
+        }, (err) => {
+          console.warn("Channels listener failed:", err);
+          setFirebaseActive(false);
+        });
 
         const unsubLogs = onSnapshot(
           query(collection(db, 'logs'), orderBy('timestamp', 'desc'), limit(20)),
@@ -516,7 +537,10 @@ export default function App() {
               list.push({ ...rest, id: d.id });
             });
             setLogs(list);
-          }, (err) => { throw err; }
+          }, (err) => {
+            console.warn("Logs listener failed:", err);
+            setFirebaseActive(false);
+          }
         );
 
         const unsubTrx = onSnapshot(
@@ -529,7 +553,10 @@ export default function App() {
               list.push({ ...rest, id: d.id });
             });
             setTransactions(list);
-          }, (err) => { throw err; }
+          }, (err) => {
+            console.warn("Transactions listener failed:", err);
+            setFirebaseActive(false);
+          }
         );
 
         const unsubUsers = onSnapshot(collection(db, 'users'), (snapshot) => {
@@ -1581,8 +1608,14 @@ export default function App() {
               />
             </div>
 
+            <style>{`
+              @keyframes spin {
+                to { transform: rotate(360deg); }
+              }
+            `}</style>
             <button
               type="submit"
+              disabled={isLoggingIn}
               style={{
                 width: '100%',
                 padding: '0.85rem',
@@ -1592,15 +1625,26 @@ export default function App() {
                 border: 'none',
                 fontSize: '1rem',
                 fontWeight: '600',
-                cursor: 'pointer',
+                cursor: isLoggingIn ? 'not-allowed' : 'pointer',
                 transition: 'opacity 0.2s',
                 marginTop: '0.5rem',
-                boxShadow: 'none'
+                boxShadow: 'none',
+                opacity: isLoggingIn ? 0.7 : 1
               }}
-              onMouseEnter={(e) => { e.currentTarget.style.opacity = '0.9' }}
-              onMouseLeave={(e) => { e.currentTarget.style.opacity = '1' }}
+              onMouseEnter={(e) => { if (!isLoggingIn) e.currentTarget.style.opacity = '0.9' }}
+              onMouseLeave={(e) => { if (!isLoggingIn) e.currentTarget.style.opacity = '1' }}
             >
-              Tizimga Kirish
+              {isLoggingIn ? (
+                <span style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '0.5rem' }}>
+                  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3" style={{ width: '16px', height: '16px', animation: 'spin 1s linear infinite' }}>
+                    <circle cx="12" cy="12" r="10" stroke="rgba(255,255,255,0.2)" />
+                    <path d="M12 2a10 10 0 0 1 10 10" />
+                  </svg>
+                  Kirilmoqda...
+                </span>
+              ) : (
+                "Tizimga Kirish"
+              )}
             </button>
           </form>
 
