@@ -1495,32 +1495,31 @@ export default function App() {
         alignItems: 'center',
         justifyContent: 'center',
         minHeight: '100vh',
-        background: 'linear-gradient(135deg, #0f172a 0%, #1e1b4b 100%)',
-        fontFamily: 'Inter, sans-serif',
+        background: '#1C1A19',
+        fontFamily: 'Outfit, sans-serif',
         padding: '1rem',
         boxSizing: 'border-box'
       }}>
         <div style={{
-          background: 'rgba(30, 41, 59, 0.7)',
-          backdropFilter: 'blur(16px)',
-          border: '1px solid rgba(255, 255, 255, 0.1)',
-          borderRadius: '24px',
+          background: '#FFFFFF',
+          border: '1px solid #D4CBC4',
+          borderRadius: '32px',
           width: '100%',
           maxWidth: '420px',
           padding: '2.5rem',
           boxShadow: 'none',
-          color: '#f8fafc',
+          color: '#1C1A19',
           boxSizing: 'border-box'
         }}>
           {/* Logo / Brand */}
           <div style={{ textAlign: 'center', marginBottom: '2rem' }}>
             <div style={{
-              width: '60px',
-              height: '60px',
-              borderRadius: '16px',
-              background: 'linear-gradient(135deg, #ec4899 0%, #8b5cf6 100%)',
+              width: '64px',
+              height: '64px',
+              borderRadius: '50%',
+              background: '#A88070',
               color: 'white',
-              fontSize: '2rem',
+              fontSize: '2.25rem',
               fontWeight: 'bold',
               display: 'flex',
               alignItems: 'center',
@@ -1528,18 +1527,18 @@ export default function App() {
               margin: '0 auto 1rem auto',
               boxShadow: 'none'
             }}>V</div>
-            <h1 style={{ fontSize: '1.75rem', fontWeight: 'bold', margin: '0 0 0.25rem 0', letterSpacing: '-0.025em' }}>Vidalita</h1>
-            <p style={{ fontSize: '0.875rem', color: '#94a3b8', margin: 0 }}>POS & Cloud Tizimiga Kirish</p>
+            <h1 style={{ fontSize: '1.75rem', fontWeight: 'bold', margin: '0 0 0.25rem 0', color: '#1C1A19', letterSpacing: '-0.025em' }}>Vidalita</h1>
+            <p style={{ fontSize: '0.875rem', color: '#6E6461', margin: 0 }}>POS & Cloud Tizimiga Kirish</p>
           </div>
 
           {loginError && (
             <div style={{
-              backgroundColor: 'rgba(239, 68, 68, 0.15)',
-              border: '1px solid #ef4444',
-              borderRadius: '12px',
-              padding: '0.75rem 1rem',
+              backgroundColor: '#FDEEE9',
+              border: '1px solid #C26E60',
+              borderRadius: '24px',
+              padding: '0.75rem 1.25rem',
               fontSize: '0.85rem',
-              color: '#fca5a5',
+              color: '#C26E60',
               marginBottom: '1.5rem',
               display: 'flex',
               alignItems: 'center',
@@ -1552,7 +1551,7 @@ export default function App() {
 
           <form onSubmit={handleLogin} style={{ display: 'flex', flexDirection: 'column', gap: '1.25rem' }}>
             <div>
-              <label style={{ display: 'block', fontSize: '0.85rem', fontWeight: '500', color: '#94a3b8', marginBottom: '0.5rem' }}>E-pochta manzili</label>
+              <label style={{ display: 'block', fontSize: '0.85rem', fontWeight: '500', color: '#6E6461', marginBottom: '0.5rem', marginLeft: '0.5rem' }}>E-pochta manzili</label>
               <input
                 type="email"
                 required
@@ -1561,11 +1560,11 @@ export default function App() {
                 onChange={e => setLoginEmail(e.target.value)}
                 style={{
                   width: '100%',
-                  padding: '0.75rem 1rem',
-                  borderRadius: '12px',
-                  background: 'rgba(15, 23, 42, 0.6)',
-                  border: '1px solid rgba(255, 255, 255, 0.1)',
-                  color: 'white',
+                  padding: '0.75rem 1.25rem',
+                  borderRadius: '24px',
+                  background: '#F7F4F1',
+                  border: '1px solid #D4CBC4',
+                  color: '#1C1A19',
                   fontSize: '0.95rem',
                   outline: 'none',
                   boxSizing: 'border-box'
@@ -1574,7 +1573,7 @@ export default function App() {
             </div>
 
             <div>
-              <label style={{ display: 'block', fontSize: '0.85rem', fontWeight: '500', color: '#94a3b8', marginBottom: '0.5rem' }}>Parol</label>
+              <label style={{ display: 'block', fontSize: '0.85rem', fontWeight: '500', color: '#6E6461', marginBottom: '0.5rem', marginLeft: '0.5rem' }}>Parol</label>
               <input
                 type="password"
                 required
@@ -1583,11 +1582,11 @@ export default function App() {
                 onChange={e => setLoginPassword(e.target.value)}
                 style={{
                   width: '100%',
-                  padding: '0.75rem 1rem',
-                  borderRadius: '12px',
-                  background: 'rgba(15, 23, 42, 0.6)',
-                  border: '1px solid rgba(255, 255, 255, 0.1)',
-                  color: 'white',
+                  padding: '0.75rem 1.25rem',
+                  borderRadius: '24px',
+                  background: '#F7F4F1',
+                  border: '1px solid #D4CBC4',
+                  color: '#1C1A19',
                   fontSize: '0.95rem',
                   outline: 'none',
                   boxSizing: 'border-box'
@@ -1600,8 +1599,8 @@ export default function App() {
               style={{
                 width: '100%',
                 padding: '0.85rem',
-                borderRadius: '12px',
-                background: 'linear-gradient(135deg, #ec4899 0%, #8b5cf6 100%)',
+                borderRadius: '24px',
+                background: '#A88070',
                 color: 'white',
                 border: 'none',
                 fontSize: '1rem',
@@ -1611,15 +1610,17 @@ export default function App() {
                 marginTop: '0.5rem',
                 boxShadow: 'none'
               }}
+              onMouseEnter={(e) => { e.currentTarget.style.opacity = '0.9' }}
+              onMouseLeave={(e) => { e.currentTarget.style.opacity = '1' }}
             >
               Tizimga Kirish
             </button>
           </form>
 
-          <div style={{ textAlign: 'center', marginTop: '2rem', fontSize: '0.75rem', color: '#64748b' }}>
+          <div style={{ textAlign: 'center', marginTop: '2rem', fontSize: '0.75rem', color: '#6E6461' }}>
             Lokal va bulutli rejim qo'llab-quvvatlanadi
             <div style={{ marginTop: '0.5rem', display: 'flex', justifyContent: 'center', gap: '0.5rem', alignItems: 'center' }}>
-              <span style={{ display: 'inline-block', width: '8px', height: '8px', borderRadius: '50%', backgroundColor: firebaseActive ? '#22c55e' : '#f59e0b' }}></span>
+              <span style={{ display: 'inline-block', width: '8px', height: '8px', borderRadius: '50%', backgroundColor: firebaseActive ? '#4E7A65' : '#C26E60' }}></span>
               <span style={{ marginLeft: '4px' }}>{firebaseActive ? "Bulut rejimi faol" : "Oflayn rejim faol"}</span>
             </div>
           </div>
