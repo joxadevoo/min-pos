@@ -253,7 +253,11 @@ export default function App() {
         }
       } catch (err) {
         console.error("Login error:", err);
-        setLoginError("Email yoki parol noto'g'ri: " + err.message);
+        if (err.code === 'auth/configuration-not-found' || err.code === 'auth/operation-not-allowed') {
+          setLoginError("Firebase Authentication-da 'Email/Password' kirish usuli yoqilmagan. Iltimos Firebase Console-ga kiring (Authentication -> Sign-in method) va uni yoqing.");
+        } else {
+          setLoginError("Email yoki parol noto'g'ri: " + err.message);
+        }
       }
     } else {
       const foundUser = users.find(u => u.email.toLowerCase() === email.toLowerCase() && u.password === password);
@@ -311,7 +315,11 @@ export default function App() {
         showToast("Muvaffaqiyatli", "Yangi xodim muvaffaqiyatli qo'shildi!", "success");
       } catch (err) {
         console.error("Add user online error:", err);
-        alert("Xatolik yuz berdi: " + err.message);
+        if (err.code === 'auth/configuration-not-found' || err.code === 'auth/operation-not-allowed') {
+          alert("Firebase Authentication-da 'Email/Password' kirish usuli yoqilmagan. Iltimos Firebase Console-ga kiring (Authentication -> Sign-in method) va uni yoqing.");
+        } else {
+          alert("Xatolik yuz berdi: " + err.message);
+        }
         return;
       }
     } else {
