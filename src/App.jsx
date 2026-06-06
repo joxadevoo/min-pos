@@ -664,32 +664,35 @@ export default function App() {
       return;
     }
     const confirmWipe = window.confirm(
-      "Diqqat! Tizimdagi barcha zaxiralar, xom-ashyolar, savdo loglari va fakturalar tarixini butunlay o'chirib tashlamoqchimisiz? (Bu amalni ortga qaytarib bo'lmaydi)"
+      "Diqqat! Tizimdagi barcha sotuvlar tarixi, loglar va mahsulotlar qoldiqlarini 0 holatiga keltirmoqchimisiz? (Mahsulotlar va xodimlar o'chmaydi)"
     );
     if (!confirmWipe) return;
 
     try {
       setFirebaseLoading(true);
       
-      // 1. Clear LocalStorage
-      localStorage.removeItem('beauty_products');
-      localStorage.removeItem('beauty_raw_materials');
-      localStorage.removeItem('beauty_bundles');
-      localStorage.removeItem('beauty_channels');
+      // Calculate zeroed products (set batches to empty array for all variants)
+      const zeroedProducts = products.map(prod => ({
+        ...prod,
+        variants: prod.variants ? prod.variants.map(v => ({
+          ...v,
+          batches: []
+        })) : []
+      }));
+
+      // 1. Clear LocalStorage for transactions, logs, cart, and save zeroed products
+      localStorage.setItem('beauty_products', JSON.stringify(zeroedProducts));
       localStorage.removeItem('beauty_logs');
       localStorage.removeItem('beauty_transactions');
       localStorage.removeItem('beauty_cart');
 
-      // 2. Clear local states
-      setProducts(initialProducts);
-      setRawMaterials(initialRawMaterials);
-      setBundles(initialBundles);
-      setLogs(initialLogs);
-      setTransactions(initialTransactions);
+      // 2. Clear / Update local states
+      setProducts(zeroedProducts);
+      setLogs([]);
+      setTransactions([]);
       setCart([]);
-      setChannels(initialChannels);
 
-      // 3. Clear Remote Firestore Database if connected
+      // 3. Update Remote Firestore Database if connected
       if (firebaseActive) {
         const deleteCollectionDocs = async (collectionName) => {
           const snap = await getDocs(collection(db, collectionName));
@@ -702,14 +705,19 @@ export default function App() {
           }
         };
 
-        await deleteCollectionDocs('products');
-        await deleteCollectionDocs('raw_materials');
-        await deleteCollectionDocs('bundles');
-        await deleteCollectionDocs('logs');
+        // Delete transactions and logs
         await deleteCollectionDocs('transactions');
+        await deleteCollectionDocs('logs');
+
+        // Update products to set batches to [] (instead of deleting the documents)
+        const batch = writeBatch(db);
+        zeroedProducts.forEach(prod => {
+          batch.set(doc(db, 'products', prod.id), prod);
+        });
+        await batch.commit();
       }
 
-      showToast("Muvaffaqiyatli!", "Baza va keshlar butunlay tozalandi! Tizim yangi holatda tayyor.", "success");
+      showToast("Muvaffaqiyatli!", "Sotuvlar tarixi o'chirildi va qoldiqlar 0 holatiga keltirildi!", "success");
     } catch (err) {
       console.error("Wipe failed:", err);
       alert("Ma'lumotlarni o'chirishda xatolik: " + err.message);
