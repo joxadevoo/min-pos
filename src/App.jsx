@@ -45,7 +45,7 @@ import {
 
 // Import Firestore database connection
 import { db, auth, firebaseConfig } from './firebase';
-import { initializeApp } from 'firebase/app';
+import { initializeApp, deleteApp } from 'firebase/app';
 import {
   getAuth,
   signInWithEmailAndPassword,
@@ -211,12 +211,20 @@ export default function App() {
           if ((authErr.code === 'auth/user-not-found' || authErr.code === 'auth/invalid-credential') && 
               email.toLowerCase() === 'joxadevoo@gmail.com' && 
               password === 'admin123') {
-            userCredential = await createUserWithEmailAndPassword(auth, email, password);
-            await setDoc(doc(db, 'users', userCredential.user.uid), {
-              name: "Joxadevoo (Admin)",
-              email: email.toLowerCase(),
-              role: "admin"
-            });
+            try {
+              userCredential = await createUserWithEmailAndPassword(auth, email, password);
+              await setDoc(doc(db, 'users', userCredential.user.uid), {
+                name: "Joxadevoo (Admin)",
+                email: email.toLowerCase(),
+                role: "admin"
+              });
+            } catch (signUpErr) {
+              if (signUpErr.code === 'auth/email-already-in-use') {
+                throw authErr;
+              } else {
+                throw signUpErr;
+              }
+            }
           } else {
             throw authErr;
           }
@@ -323,16 +331,19 @@ export default function App() {
     if (firebaseActive) {
       try {
         const tempApp = initializeApp(firebaseConfig, "TempApp");
-        const tempAuth = getAuth(tempApp);
-        const userCredential = await createUserWithEmailAndPassword(tempAuth, email, password);
-        const uid = userCredential.user.uid;
-        await tempApp.delete();
-        
-        await setDoc(doc(db, 'users', uid), {
-          name,
-          email,
-          role
-        });
+        try {
+          const tempAuth = getAuth(tempApp);
+          const userCredential = await createUserWithEmailAndPassword(tempAuth, email, password);
+          const uid = userCredential.user.uid;
+          
+          await setDoc(doc(db, 'users', uid), {
+            name,
+            email,
+            role
+          });
+        } finally {
+          await deleteApp(tempApp);
+        }
         
         showToast("Muvaffaqiyatli", "Yangi xodim muvaffaqiyatli qo'shildi!", "success");
       } catch (err) {
