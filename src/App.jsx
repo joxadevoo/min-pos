@@ -313,6 +313,10 @@ export default function App() {
 
   const handleAddUser = async (e) => {
     e.preventDefault();
+    if (!currentUser || currentUser.role !== 'admin') {
+      showToast("Taqiqlangan", "Ushbu amalni bajarish uchun admin huquqi talab etiladi!", "error");
+      return;
+    }
     const { name, email, password, role } = userForm;
     if (!name || !email || !password || !role) {
       alert("Iltimos barcha maydonlarni to'ldiring!");
@@ -362,6 +366,10 @@ export default function App() {
   };
 
   const handleDeleteUser = async (userId, userEmail) => {
+    if (!currentUser || currentUser.role !== 'admin') {
+      showToast("Taqiqlangan", "Ushbu amalni bajarish uchun admin huquqi talab etiladi!", "error");
+      return;
+    }
     const confirmDelete = confirm(`Haqiqatan ham "${userEmail}" xodimini tizimdan o'chirmoqchisiz?`);
     if (!confirmDelete) return;
     
@@ -605,6 +613,10 @@ export default function App() {
 
   // --- DATABASE RESET / CLEAR FUNCTION ---
   const handleResetDatabase = async () => {
+    if (!currentUser || currentUser.role !== 'admin') {
+      showToast("Taqiqlangan", "Ushbu amalni bajarish uchun admin huquqi talab etiladi!", "error");
+      return;
+    }
     const confirmWipe = window.confirm(
       "Diqqat! Tizimdagi barcha zaxiralar, xom-ashyolar, savdo loglari va fakturalar tarixini butunlay o'chirib tashlamoqchimisiz? (Bu amalni ortga qaytarib bo'lmaydi)"
     );
@@ -1316,6 +1328,10 @@ export default function App() {
   // --- ADD BATCH MODAL ACTION ---
   const submitAddBatch = async (e) => {
     e.preventDefault();
+    if (!currentUser || currentUser.role !== 'admin') {
+      showToast("Taqiqlangan", "Ushbu amalni bajarish uchun admin huquqi talab etiladi!", "error");
+      return;
+    }
     const { qty, expiryDate, mfgDate } = modalInputs;
 
     if (!qty || qty <= 0) {
@@ -1379,6 +1395,10 @@ export default function App() {
   // --- ADD PRODUCT MODAL ACTION ---
   const submitAddProduct = async (e) => {
     e.preventDefault();
+    if (!currentUser || currentUser.role !== 'admin') {
+      showToast("Taqiqlangan", "Ushbu amalni bajarish uchun admin huquqi talab etiladi!", "error");
+      return;
+    }
     const { name, brand, category, skuPrefix, desc, variantName, variantSku, variantPrice, variantColor, reorderLevel } = modalInputs;
 
     if (!name || !brand || !category || !skuPrefix || !variantSku || !variantPrice) {
