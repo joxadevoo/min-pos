@@ -51,7 +51,9 @@ import {
   signInWithEmailAndPassword,
   createUserWithEmailAndPassword,
   signOut,
-  onAuthStateChanged
+  onAuthStateChanged,
+  initializeAuth,
+  inMemoryPersistence
 } from 'firebase/auth';
 import {
   collection,
@@ -332,7 +334,9 @@ export default function App() {
       try {
         const tempApp = initializeApp(firebaseConfig, "TempApp");
         try {
-          const tempAuth = getAuth(tempApp);
+          const tempAuth = initializeAuth(tempApp, {
+            persistence: inMemoryPersistence
+          });
           const userCredential = await createUserWithEmailAndPassword(tempAuth, email, password);
           const uid = userCredential.user.uid;
           
