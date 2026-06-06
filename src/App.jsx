@@ -71,7 +71,7 @@ import {
 } from 'firebase/firestore';
 
 // Data versiyasi — o'zgartirsa eski localStorage avtomatik tozalanadi
-const DATA_VERSION = 'v5-vidalita-single-admin-auth-reset';
+const DATA_VERSION = 'v6-vidalita-tgc-admin-auth-reset';
 
 export default function App() {
   // --- Eski keshni versiya asosida tozalash ---
@@ -138,10 +138,10 @@ export default function App() {
     if (saved) return JSON.parse(saved);
     const defaultUsers = [
       {
-        id: 'user-admin-joxadevoo',
-        name: 'Joxadevoo (Admin)',
-        email: 'joxadevoo@gmail.com',
-        password: 'admin123',
+        id: 'user-admin-tgc',
+        name: 'TGC (Admin)',
+        email: 'turkglobalcenter@gmail.com',
+        password: 'TGC2025',
         role: 'admin'
       }
     ];
@@ -211,12 +211,12 @@ export default function App() {
           userCredential = await signInWithEmailAndPassword(auth, email, password);
         } catch (authErr) {
           if ((authErr.code === 'auth/user-not-found' || authErr.code === 'auth/invalid-credential') && 
-              email.toLowerCase() === 'joxadevoo@gmail.com' && 
-              password === 'admin123') {
+              email.toLowerCase() === 'turkglobalcenter@gmail.com' && 
+              password === 'TGC2025') {
             try {
               userCredential = await createUserWithEmailAndPassword(auth, email, password);
               await setDoc(doc(db, 'users', userCredential.user.uid), {
-                name: "Joxadevoo (Admin)",
+                name: "TGC (Admin)",
                 email: email.toLowerCase(),
                 role: "admin"
               });
@@ -237,12 +237,12 @@ export default function App() {
           const userData = userDoc.data();
           const loggedIn = {
             uid: userCredential.user.uid,
-            name: userData.name || "Joxadevoo (Admin)",
+            name: userData.name || "TGC (Admin)",
             email: email,
-            role: (email.toLowerCase() === 'joxadevoo@gmail.com') ? 'admin' : (userData.role || 'sotuvchi')
+            role: (email.toLowerCase() === 'turkglobalcenter@gmail.com') ? 'admin' : (userData.role || 'sotuvchi')
           };
           // Force update in database if role isn't admin
-          if (email.toLowerCase() === 'joxadevoo@gmail.com' && userData.role !== 'admin') {
+          if (email.toLowerCase() === 'turkglobalcenter@gmail.com' && userData.role !== 'admin') {
             await setDoc(doc(db, 'users', userCredential.user.uid), { role: 'admin' }, { merge: true });
           }
           setCurrentUser(loggedIn);
@@ -251,9 +251,9 @@ export default function App() {
         } else {
           const fallbackUser = {
             uid: userCredential.user.uid,
-            name: "Joxadevoo (Admin)",
+            name: "TGC (Admin)",
             email: email,
-            role: email.toLowerCase() === 'joxadevoo@gmail.com' ? 'admin' : 'sotuvchi'
+            role: email.toLowerCase() === 'turkglobalcenter@gmail.com' ? 'admin' : 'sotuvchi'
           };
           await setDoc(doc(db, 'users', userCredential.user.uid), {
             name: fallbackUser.name,
@@ -276,12 +276,12 @@ export default function App() {
       }
     } else {
       let foundUser = users.find(u => u.email.toLowerCase() === email.toLowerCase() && u.password === password);
-      if (!foundUser && email.toLowerCase() === 'joxadevoo@gmail.com' && password === 'admin123') {
+      if (!foundUser && email.toLowerCase() === 'turkglobalcenter@gmail.com' && password === 'TGC2025') {
         foundUser = {
-          id: 'user-admin-joxadevoo',
-          name: 'Joxadevoo (Admin)',
-          email: 'joxadevoo@gmail.com',
-          password: 'admin123',
+          id: 'user-admin-tgc',
+          name: 'TGC (Admin)',
+          email: 'turkglobalcenter@gmail.com',
+          password: 'TGC2025',
           role: 'admin'
         };
         const updatedUsers = [...users, foundUser];
@@ -293,7 +293,7 @@ export default function App() {
           uid: foundUser.id,
           name: foundUser.name,
           email: foundUser.email,
-          role: (foundUser.email.toLowerCase() === 'joxadevoo@gmail.com') ? 'admin' : foundUser.role
+          role: (foundUser.email.toLowerCase() === 'turkglobalcenter@gmail.com') ? 'admin' : foundUser.role
         };
         setCurrentUser(loggedIn);
         localStorage.setItem('beauty_current_user', JSON.stringify(loggedIn));
@@ -428,16 +428,16 @@ export default function App() {
               const userData = userDoc.data();
               const loggedIn = {
                 uid: user.uid,
-                name: userData.name || "Joxadevoo (Admin)",
+                name: userData.name || "TGC (Admin)",
                 email: user.email,
-                role: (user.email.toLowerCase() === 'joxadevoo@gmail.com') ? 'admin' : (userData.role || 'sotuvchi')
+                role: (user.email.toLowerCase() === 'turkglobalcenter@gmail.com') ? 'admin' : (userData.role || 'sotuvchi')
               };
               setCurrentUser(loggedIn);
               localStorage.setItem('beauty_current_user', JSON.stringify(loggedIn));
             } else {
-              if (user.email.toLowerCase() === 'joxadevoo@gmail.com') {
+              if (user.email.toLowerCase() === 'turkglobalcenter@gmail.com') {
                 const adminDoc = {
-                  name: "Joxadevoo (Admin)",
+                  name: "TGC (Admin)",
                   email: user.email,
                   role: 'admin'
                 };
@@ -586,11 +586,11 @@ export default function App() {
           
           if (list.length === 0) {
             const adminDoc = {
-              name: "Joxadevoo (Admin)",
-              email: "joxadevoo@gmail.com",
+              name: "TGC (Admin)",
+              email: "turkglobalcenter@gmail.com",
               role: "admin"
             };
-            setDoc(doc(db, 'users', 'admin-default-joxadevoo'), adminDoc);
+            setDoc(doc(db, 'users', 'admin-default-tgc'), adminDoc);
           }
         }, (err) => {
           console.warn("Firestore users listener failed (unauthorized or missing):", err);
@@ -1589,7 +1589,7 @@ export default function App() {
               <input
                 type="email"
                 required
-                placeholder="joxadevoo@gmail.com"
+                placeholder="turkglobalcenter@gmail.com"
                 value={loginEmail}
                 onChange={e => setLoginEmail(e.target.value)}
                 style={{
@@ -2806,7 +2806,7 @@ service cloud.firestore {
                           </span>
                         </td>
                         <td style={{ textAlign: 'center' }}>
-                          {u.email !== currentUser.email && u.email.toLowerCase() !== 'joxadevoo@gmail.com' ? (
+                          {u.email !== currentUser.email && u.email.toLowerCase() !== 'turkglobalcenter@gmail.com' ? (
                             <button
                               type="button"
                               className="btn btn-secondary"
