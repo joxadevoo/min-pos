@@ -178,6 +178,7 @@ export default function App() {
 
   // --- UI Control State ---
   const [activeTab, setActiveTab] = useState('pos');
+  const [isProfileDropdownOpen, setIsProfileDropdownOpen] = useState(false);
   const [searchTerm, setSearchTerm] = useState('');
   const [categoryFilter, setCategoryFilter] = useState('All');
   const [expandedProduct, setExpandedProduct] = useState(null);
@@ -394,6 +395,17 @@ export default function App() {
       setActiveTab('pos');
     }
   }, [currentUser, activeTab]);
+
+  useEffect(() => {
+    if (!isProfileDropdownOpen) return;
+    const handleOutsideClick = (e) => {
+      if (!e.target.closest('.profile-container')) {
+        setIsProfileDropdownOpen(false);
+      }
+    };
+    document.addEventListener('click', handleOutsideClick);
+    return () => document.removeEventListener('click', handleOutsideClick);
+  }, [isProfileDropdownOpen]);
 
   useEffect(() => {
     if (firebaseActive) {
@@ -1678,36 +1690,91 @@ export default function App() {
             </button>
           )}
 
-          <div className="user-badge" style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
-            <div className="user-avatar-small" style={{
-              background: currentUser.role === 'admin' ? 'linear-gradient(135deg, #ec4899 0%, #8b5cf6 100%)' : 'var(--color-primary)'
-            }}>
-              {currentUser.name ? currentUser.name.substring(0, 2).toUpperCase() : 'US'}
-            </div>
-            <div className="user-text-small">
-              <span className="user-name-small">{currentUser.name}</span>
-              <span className="user-role-small" style={{ textTransform: 'capitalize' }}>
-                {currentUser.role === 'admin' ? 'Admin' : 'Sotuvchi'}
-              </span>
-            </div>
+          <div className="profile-container" style={{ position: 'relative' }}>
             <button
-              onClick={handleLogout}
-              className="btn-icon"
+              onClick={() => setIsProfileDropdownOpen(prev => !prev)}
+              className="user-badge-btn"
               style={{
-                background: 'none',
-                border: 'none',
-                color: 'rgba(255,255,255,0.6)',
-                cursor: 'pointer',
-                padding: '4px',
                 display: 'flex',
                 alignItems: 'center',
-                justifyContent: 'center',
-                marginLeft: '6px'
+                gap: '0.5rem',
+                background: 'rgba(255,255,255,0.03)',
+                border: '1px solid rgba(255,255,255,0.05)',
+                padding: '0.35rem 0.6rem',
+                borderRadius: '12px',
+                cursor: 'pointer',
+                transition: 'all 0.2s',
+                color: '#FFF'
               }}
-              title="Tizimdan chiqish"
+              onMouseEnter={(e) => { e.currentTarget.style.background = 'rgba(255,255,255,0.08)' }}
+              onMouseLeave={(e) => { e.currentTarget.style.background = 'rgba(255,255,255,0.03)' }}
             >
-              <LogOut size={16} />
+              <div className="user-avatar-small" style={{
+                background: currentUser.role === 'admin' ? 'linear-gradient(135deg, #ec4899 0%, #8b5cf6 100%)' : 'var(--color-primary)',
+                margin: 0
+              }}>
+                {currentUser.name ? currentUser.name.substring(0, 2).toUpperCase() : 'US'}
+              </div>
+              <div className="user-text-small" style={{ textAlign: 'left' }}>
+                <span className="user-name-small">{currentUser.name}</span>
+                <span className="user-role-small" style={{ textTransform: 'capitalize', display: 'flex', alignItems: 'center', gap: '2px' }}>
+                  {currentUser.role === 'admin' ? 'Admin' : 'Sotuvchi'}
+                  <ChevronDown size={10} style={{ opacity: 0.6 }} />
+                </span>
+              </div>
             </button>
+
+            {isProfileDropdownOpen && (
+              <div className="profile-dropdown" style={{
+                position: 'absolute',
+                top: 'calc(100% + 8px)',
+                right: 0,
+                background: 'rgba(30, 41, 59, 0.95)',
+                backdropFilter: 'blur(16px)',
+                border: '1px solid rgba(255, 255, 255, 0.1)',
+                borderRadius: '14px',
+                padding: '0.75rem',
+                minWidth: '200px',
+                boxShadow: '0 10px 30px -5px rgba(0, 0, 0, 0.5)',
+                zIndex: 9999,
+                display: 'flex',
+                flexDirection: 'column',
+                gap: '0.5rem',
+                fontFamily: 'Inter, sans-serif'
+              }}>
+                <div style={{ padding: '0.25rem 0.5rem' }}>
+                  <div style={{ fontWeight: 600, fontSize: '0.85rem', color: '#f8fafc' }}>{currentUser.name}</div>
+                  <div style={{ fontSize: '0.75rem', color: 'rgba(255,255,255,0.5)', marginTop: '2px', wordBreak: 'break-all' }}>{currentUser.email}</div>
+                </div>
+                <div style={{ borderTop: '1px solid rgba(255,255,255,0.08)', margin: '4px 0' }} />
+                <button
+                  onClick={() => {
+                    setIsProfileDropdownOpen(false);
+                    handleLogout();
+                  }}
+                  style={{
+                    display: 'flex',
+                    alignItems: 'center',
+                    gap: '0.5rem',
+                    width: '100%',
+                    padding: '0.5rem 0.75rem',
+                    border: 'none',
+                    background: 'none',
+                    color: '#ef4444',
+                    cursor: 'pointer',
+                    fontSize: '0.8rem',
+                    borderRadius: '8px',
+                    textAlign: 'left',
+                    transition: 'background 0.2s'
+                  }}
+                  onMouseEnter={(e) => { e.currentTarget.style.backgroundColor = 'rgba(239, 68, 68, 0.1)' }}
+                  onMouseLeave={(e) => { e.currentTarget.style.backgroundColor = 'transparent' }}
+                >
+                  <LogOut size={14} />
+                  <span>Tizimdan chiqish</span>
+                </button>
+              </div>
+            )}
           </div>
         </div>
       </header>
