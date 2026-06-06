@@ -20,6 +20,9 @@ import {
   Printer,
   FileText,
   User,
+  Users,
+  LogOut,
+  Lock,
   CreditCard,
   Banknote,
   Smartphone,
@@ -41,7 +44,15 @@ import {
 } from './data';
 
 // Import Firestore database connection
-import { db } from './firebase';
+import { db, auth, firebaseConfig } from './firebase';
+import { initializeApp } from 'firebase/app';
+import {
+  getAuth,
+  signInWithEmailAndPassword,
+  createUserWithEmailAndPassword,
+  signOut,
+  onAuthStateChanged
+} from 'firebase/auth';
 import {
   collection,
   doc,
@@ -112,6 +123,244 @@ export default function App() {
   const [firebaseActive, setFirebaseActive] = useState(false);
   const [, setFirebaseLoading] = useState(true);
   const [firebaseError, setFirebaseError] = useState(null);
+
+  // --- User Authentication and Roles State ---
+  const [currentUser, setCurrentUser] = useState(() => {
+    const saved = localStorage.getItem('beauty_current_user');
+    return saved ? JSON.parse(saved) : null;
+  });
+
+  const [users, setUsers] = useState(() => {
+    const saved = localStorage.getItem('beauty_users');
+    if (saved) return JSON.parse(saved);
+    const defaultUsers = [
+      {
+        id: 'user-admin',
+        name: 'Diyora (Admin)',
+        email: 'admin@vidalita.uz',
+        password: 'admin123',
+        role: 'admin'
+      },
+      {
+        id: 'user-seller-1',
+        name: 'Sotuvchi',
+        email: 'sotuvchi@vidalita.uz',
+        password: 'sotuvchi123',
+        role: 'sotuvchi'
+      }
+    ];
+    localStorage.setItem('beauty_users', JSON.stringify(defaultUsers));
+    return defaultUsers;
+  });
+
+  const [loginEmail, setLoginEmail] = useState('');
+  const [loginPassword, setLoginPassword] = useState('');
+  const [loginError, setLoginError] = useState('');
+
+  const [userForm, setUserForm] = useState({
+    name: '',
+    email: '',
+    password: '',
+    role: 'sotuvchi'
+  });
+  const [isAddUserModalOpen, setIsAddUserModalOpen] = useState(false);
+
+  const handleLogin = async (e) => {
+    e.preventDefault();
+    setLoginError('');
+    const email = loginEmail.trim();
+    const password = loginPassword;
+    
+    if (firebaseActive) {
+      try {
+        let userCredential;
+        try {
+          userCredential = await signInWithEmailAndPassword(auth, email, password);
+        } catch (authErr) {
+          if ((authErr.code === 'auth/user-not-found' || authErr.code === 'auth/invalid-credential') && email === 'admin@vidalita.uz' && password === 'admin123') {
+            userCredential = await createUserWithEmailAndPassword(auth, email, password);
+            await setDoc(doc(db, 'users', userCredential.user.uid), {
+              name: "Diyora (Admin)",
+              email: "admin@vidalita.uz",
+              role: "admin"
+            });
+          } else {
+            throw authErr;
+          }
+        }
+        
+        const userDoc = await getDoc(doc(db, 'users', userCredential.user.uid));
+        if (userDoc.exists()) {
+          const userData = userDoc.data();
+          const loggedIn = {
+            uid: userCredential.user.uid,
+            name: userData.name || "Admin",
+            email: email,
+            role: userData.role || "sotuvchi"
+          };
+          setCurrentUser(loggedIn);
+          localStorage.setItem('beauty_current_user', JSON.stringify(loggedIn));
+          showToast("Muvaffaqiyatli kirildi", `${userData.name || 'Admin'} xush kelibsiz!`, "success");
+        } else {
+          const fallbackUser = {
+            uid: userCredential.user.uid,
+            name: email.split('@')[0],
+            email: email,
+            role: email === 'admin@vidalita.uz' ? 'admin' : 'sotuvchi'
+          };
+          await setDoc(doc(db, 'users', userCredential.user.uid), {
+            name: fallbackUser.name,
+            email: fallbackUser.email,
+            role: fallbackUser.role
+          });
+          setCurrentUser(fallbackUser);
+          localStorage.setItem('beauty_current_user', JSON.stringify(fallbackUser));
+          showToast("Muvaffaqiyatli kirildi", "Xush kelibsiz!", "success");
+        }
+      } catch (err) {
+        console.error("Login error:", err);
+        setLoginError("Email yoki parol noto'g'ri: " + err.message);
+      }
+    } else {
+      const foundUser = users.find(u => u.email.toLowerCase() === email.toLowerCase() && u.password === password);
+      if (foundUser) {
+        const loggedIn = {
+          uid: foundUser.id,
+          name: foundUser.name,
+          email: foundUser.email,
+          role: foundUser.role
+        };
+        setCurrentUser(loggedIn);
+        localStorage.setItem('beauty_current_user', JSON.stringify(loggedIn));
+        showToast("Muvaffaqiyatli kirildi (Oflayn)", `${foundUser.name} xush kelibsiz!`, "success");
+      } else {
+        setLoginError("Email yoki parol noto'g'ri (Lokal rejim)");
+      }
+    }
+  };
+
+  const handleLogout = async () => {
+    if (firebaseActive) {
+      try {
+        await signOut(auth);
+      } catch (err) {
+        console.error("Sign out error:", err);
+      }
+    }
+    setCurrentUser(null);
+    localStorage.removeItem('beauty_current_user');
+    showToast("Tizimdan chiqildi", "Xavfsiz ravishda tizimdan chiqdingiz.", "info");
+  };
+
+  const handleAddUser = async (e) => {
+    e.preventDefault();
+    const { name, email, password, role } = userForm;
+    if (!name || !email || !password || !role) {
+      alert("Iltimos barcha maydonlarni to'ldiring!");
+      return;
+    }
+    
+    if (firebaseActive) {
+      try {
+        const tempApp = initializeApp(firebaseConfig, "TempApp");
+        const tempAuth = getAuth(tempApp);
+        const userCredential = await createUserWithEmailAndPassword(tempAuth, email, password);
+        const uid = userCredential.user.uid;
+        await tempApp.delete();
+        
+        await setDoc(doc(db, 'users', uid), {
+          name,
+          email,
+          role
+        });
+        
+        showToast("Muvaffaqiyatli", "Yangi xodim muvaffaqiyatli qo'shildi!", "success");
+      } catch (err) {
+        console.error("Add user online error:", err);
+        alert("Xatolik yuz berdi: " + err.message);
+        return;
+      }
+    } else {
+      const newUser = {
+        id: 'user-' + Date.now(),
+        name,
+        email,
+        password,
+        role
+      };
+      const updatedUsers = [...users, newUser];
+      setUsers(updatedUsers);
+      localStorage.setItem('beauty_users', JSON.stringify(updatedUsers));
+      showToast("Muvaffaqiyatli (Lokal)", "Yangi xodim lokal rejimda qo'shildi!", "success");
+    }
+    
+    setUserForm({ name: '', email: '', password: '', role: 'sotuvchi' });
+    setIsAddUserModalOpen(false);
+  };
+
+  const handleDeleteUser = async (userId, userEmail) => {
+    const confirmDelete = confirm(`Haqiqatan ham "${userEmail}" xodimini tizimdan o'chirmoqchisiz?`);
+    if (!confirmDelete) return;
+    
+    if (firebaseActive) {
+      try {
+        await deleteDoc(doc(db, 'users', userId));
+        showToast("Muvaffaqiyatli", "Xodim tizimdan o'chirildi (Firestore)!", "success");
+      } catch (err) {
+        console.error("Delete user online error:", err);
+        alert("Xatolik yuz berdi: " + err.message);
+      }
+    } else {
+      const updatedUsers = users.filter(u => u.id !== userId);
+      setUsers(updatedUsers);
+      localStorage.setItem('beauty_users', JSON.stringify(updatedUsers));
+      showToast("Muvaffaqiyatli (Lokal)", "Xodim lokal tizimdan o'chirildi!", "success");
+    }
+  };
+
+  useEffect(() => {
+    if (currentUser && currentUser.role === 'sotuvchi' && (activeTab === 'inventory' || activeTab === 'users')) {
+      setActiveTab('pos');
+    }
+  }, [currentUser, activeTab]);
+
+  useEffect(() => {
+    if (firebaseActive) {
+      const unsubAuth = onAuthStateChanged(auth, async (user) => {
+        if (user) {
+          try {
+            const userDoc = await getDoc(doc(db, 'users', user.uid));
+            if (userDoc.exists()) {
+              const userData = userDoc.data();
+              const loggedIn = {
+                uid: user.uid,
+                name: userData.name || user.email.split('@')[0],
+                email: user.email,
+                role: userData.role || 'sotuvchi'
+              };
+              setCurrentUser(loggedIn);
+              localStorage.setItem('beauty_current_user', JSON.stringify(loggedIn));
+            } else {
+              await signOut(auth);
+              setCurrentUser(null);
+              localStorage.removeItem('beauty_current_user');
+            }
+          } catch (err) {
+            console.error("Error fetching user role on auth state change:", err);
+          }
+        } else {
+          if (localStorage.getItem('beauty_current_user')) {
+            const localUser = JSON.parse(localStorage.getItem('beauty_current_user'));
+            if (localUser && localUser.uid && !localUser.uid.startsWith('user-')) {
+              setCurrentUser(null);
+              localStorage.removeItem('beauty_current_user');
+            }
+          }
+        }
+      });
+      return () => unsubAuth();
+    }
+  }, [firebaseActive]);
 
   // --- So'm formatlash yordamchisi ---
   const formatSum = (amount) =>
@@ -228,7 +477,24 @@ export default function App() {
           }, (err) => { throw err; }
         );
 
-        unsubscribes = [unsubProducts, unsubRaw, unsubBundles, unsubChannels, unsubLogs, unsubTrx];
+        const unsubUsers = onSnapshot(collection(db, 'users'), (snapshot) => {
+          const list = [];
+          snapshot.forEach(d => list.push({ ...d.data(), id: d.id }));
+          setUsers(list);
+          
+          if (list.length === 0) {
+            const adminDoc = {
+              name: "Diyora (Admin)",
+              email: "admin@vidalita.uz",
+              role: "admin"
+            };
+            setDoc(doc(db, 'users', 'admin-default-id'), adminDoc);
+          }
+        }, (err) => {
+          console.warn("Firestore users listener failed (unauthorized or missing):", err);
+        });
+
+        unsubscribes = [unsubProducts, unsubRaw, unsubBundles, unsubChannels, unsubLogs, unsubTrx, unsubUsers];
         setFirebaseActive(true);
         setFirebaseError(null);
       } catch (err) {
@@ -1142,6 +1408,146 @@ export default function App() {
 
   const categories = ['All', ...new Set(products.map(p => p.category))];
 
+  if (!currentUser) {
+    return (
+      <div className="login-screen-overlay" style={{
+        display: 'flex',
+        alignItems: 'center',
+        justifyContent: 'center',
+        minHeight: '100vh',
+        background: 'linear-gradient(135deg, #0f172a 0%, #1e1b4b 100%)',
+        fontFamily: 'Inter, sans-serif',
+        padding: '1rem',
+        boxSizing: 'border-box'
+      }}>
+        <div style={{
+          background: 'rgba(30, 41, 59, 0.7)',
+          backdropFilter: 'blur(16px)',
+          border: '1px solid rgba(255, 255, 255, 0.1)',
+          borderRadius: '24px',
+          width: '100%',
+          maxWidth: '420px',
+          padding: '2.5rem',
+          boxShadow: '0 25px 50px -12px rgba(0, 0, 0, 0.5)',
+          color: '#f8fafc',
+          boxSizing: 'border-box'
+        }}>
+          {/* Logo / Brand */}
+          <div style={{ textAlign: 'center', marginBottom: '2rem' }}>
+            <div style={{
+              width: '60px',
+              height: '60px',
+              borderRadius: '16px',
+              background: 'linear-gradient(135deg, #ec4899 0%, #8b5cf6 100%)',
+              color: 'white',
+              fontSize: '2rem',
+              fontWeight: 'bold',
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'center',
+              margin: '0 auto 1rem auto',
+              boxShadow: '0 8px 16px rgba(236, 72, 153, 0.3)'
+            }}>V</div>
+            <h1 style={{ fontSize: '1.75rem', fontWeight: 'bold', margin: '0 0 0.25rem 0', letterSpacing: '-0.025em' }}>Vidalita</h1>
+            <p style={{ fontSize: '0.875rem', color: '#94a3b8', margin: 0 }}>POS & Cloud Tizimiga Kirish</p>
+          </div>
+
+          {loginError && (
+            <div style={{
+              backgroundColor: 'rgba(239, 68, 68, 0.15)',
+              border: '1px solid #ef4444',
+              borderRadius: '12px',
+              padding: '0.75rem 1rem',
+              fontSize: '0.85rem',
+              color: '#fca5a5',
+              marginBottom: '1.5rem',
+              display: 'flex',
+              alignItems: 'center',
+              gap: '0.5rem'
+            }}>
+              <AlertTriangle size={16} style={{ flexShrink: 0 }} />
+              <span>{loginError}</span>
+            </div>
+          )}
+
+          <form onSubmit={handleLogin} style={{ display: 'flex', flexDirection: 'column', gap: '1.25rem' }}>
+            <div>
+              <label style={{ display: 'block', fontSize: '0.85rem', fontWeight: '500', color: '#94a3b8', marginBottom: '0.5rem' }}>E-pochta manzili</label>
+              <input
+                type="email"
+                required
+                placeholder="admin@vidalita.uz"
+                value={loginEmail}
+                onChange={e => setLoginEmail(e.target.value)}
+                style={{
+                  width: '100%',
+                  padding: '0.75rem 1rem',
+                  borderRadius: '12px',
+                  background: 'rgba(15, 23, 42, 0.6)',
+                  border: '1px solid rgba(255, 255, 255, 0.1)',
+                  color: 'white',
+                  fontSize: '0.95rem',
+                  outline: 'none',
+                  boxSizing: 'border-box'
+                }}
+              />
+            </div>
+
+            <div>
+              <label style={{ display: 'block', fontSize: '0.85rem', fontWeight: '500', color: '#94a3b8', marginBottom: '0.5rem' }}>Parol</label>
+              <input
+                type="password"
+                required
+                placeholder="••••••••"
+                value={loginPassword}
+                onChange={e => setLoginPassword(e.target.value)}
+                style={{
+                  width: '100%',
+                  padding: '0.75rem 1rem',
+                  borderRadius: '12px',
+                  background: 'rgba(15, 23, 42, 0.6)',
+                  border: '1px solid rgba(255, 255, 255, 0.1)',
+                  color: 'white',
+                  fontSize: '0.95rem',
+                  outline: 'none',
+                  boxSizing: 'border-box'
+                }}
+              />
+            </div>
+
+            <button
+              type="submit"
+              style={{
+                width: '100%',
+                padding: '0.85rem',
+                borderRadius: '12px',
+                background: 'linear-gradient(135deg, #ec4899 0%, #8b5cf6 100%)',
+                color: 'white',
+                border: 'none',
+                fontSize: '1rem',
+                fontWeight: '600',
+                cursor: 'pointer',
+                transition: 'opacity 0.2s',
+                marginTop: '0.5rem',
+                boxShadow: '0 4px 12px rgba(139, 92, 246, 0.25)'
+              }}
+            >
+              Tizimga Kirish
+            </button>
+          </form>
+
+          <div style={{ textAlign: 'center', marginTop: '2rem', fontSize: '0.75rem', color: '#64748b' }}>
+            Lokal va bulutli rejim qo'llab-quvvatlanadi
+            <div style={{ marginTop: '0.5rem', display: 'flex', justifyContent: 'center', gap: '0.5rem', alignItems: 'center' }}>
+              <span style={{ display: 'inline-block', width: '8px', height: '8px', borderRadius: '50%', backgroundColor: firebaseActive ? '#22c55e' : '#f59e0b' }}></span>
+              <span style={{ marginLeft: '4px' }}>{firebaseActive ? "Bulut rejimi faol" : "Oflayn rejim faol"}</span>
+            </div>
+          </div>
+        </div>
+      </div>
+    );
+  }
+
   return (
     <div className="app-container">
       {/* HORIZONTAL NAVBAR */}
@@ -1163,11 +1569,18 @@ export default function App() {
             <FileText size={16} />
             <span>Fakturalar</span>
           </button>
-          <button className={`nav-link-item ${activeTab === 'inventory' ? 'active' : ''}`} onClick={() => setActiveTab('inventory')}>
-            <Package size={16} />
-            <span>Zaxira</span>
-          </button>
-
+          {currentUser && currentUser.role === 'admin' && (
+            <>
+              <button className={`nav-link-item ${activeTab === 'inventory' ? 'active' : ''}`} onClick={() => setActiveTab('inventory')}>
+                <Package size={16} />
+                <span>Zaxira</span>
+              </button>
+              <button className={`nav-link-item ${activeTab === 'users' ? 'active' : ''}`} onClick={() => setActiveTab('users')}>
+                <Users size={16} />
+                <span>Xodimlar</span>
+              </button>
+            </>
+          )}
         </nav>
 
         <div className="nav-meta-section">
@@ -1185,22 +1598,48 @@ export default function App() {
             )}
           </div>
 
-          <button
-            type="button"
-            className="btn btn-secondary"
-            style={{ padding: '0.4rem 0.8rem', fontSize: '0.75rem', gap: '0.35rem', borderColor: 'rgba(255,255,255,0.1)', color: '#FFF', background: 'rgba(255,255,255,0.05)' }}
-            onClick={handleResetDatabase}
-          >
-            <Trash2 size={12} style={{ color: 'var(--color-warning)' }} />
-            <span>Wipe</span>
-          </button>
+          {currentUser && currentUser.role === 'admin' && (
+            <button
+              type="button"
+              className="btn btn-secondary"
+              style={{ padding: '0.4rem 0.8rem', fontSize: '0.75rem', gap: '0.35rem', borderColor: 'rgba(255,255,255,0.1)', color: '#FFF', background: 'rgba(255,255,255,0.05)' }}
+              onClick={handleResetDatabase}
+            >
+              <Trash2 size={12} style={{ color: 'var(--color-warning)' }} />
+              <span>Wipe</span>
+            </button>
+          )}
 
-          <div className="user-badge">
-            <div className="user-avatar-small">AD</div>
-            <div className="user-text-small">
-              <span className="user-name-small">Diyora</span>
-              <span className="user-role-small">Manager</span>
+          <div className="user-badge" style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
+            <div className="user-avatar-small" style={{
+              background: currentUser.role === 'admin' ? 'linear-gradient(135deg, #ec4899 0%, #8b5cf6 100%)' : 'var(--color-primary)'
+            }}>
+              {currentUser.name ? currentUser.name.substring(0, 2).toUpperCase() : 'US'}
             </div>
+            <div className="user-text-small">
+              <span className="user-name-small">{currentUser.name}</span>
+              <span className="user-role-small" style={{ textTransform: 'capitalize' }}>
+                {currentUser.role === 'admin' ? 'Admin' : 'Sotuvchi'}
+              </span>
+            </div>
+            <button
+              onClick={handleLogout}
+              className="btn-icon"
+              style={{
+                background: 'none',
+                border: 'none',
+                color: 'rgba(255,255,255,0.6)',
+                cursor: 'pointer',
+                padding: '4px',
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'center',
+                marginLeft: '6px'
+              }}
+              title="Tizimdan chiqish"
+            >
+              <LogOut size={16} />
+            </button>
           </div>
         </div>
       </header>
@@ -2116,6 +2555,92 @@ service cloud.firestore {
           </>
         )}
 
+        {activeTab === 'users' && currentUser && currentUser.role === 'admin' && (
+          <>
+            <div className="page-header" style={{ paddingBottom: '0.75rem', marginBottom: '1rem' }}>
+              <div className="header-title">
+                <h1>Tizim Xodimlari & Sotuvchilar</h1>
+                <p>Do'kon sotuvchilari (kassirlar) va admin profillarini boshqarish</p>
+              </div>
+              <div className="header-actions">
+                <button type="button" className="btn btn-primary" onClick={() => setIsAddUserModalOpen(true)}>
+                  <Plus size={15} />
+                  <span>Yangi Xodim Qo'shish</span>
+                </button>
+              </div>
+            </div>
+
+            <div className="panel">
+              <div className="panel-header">
+                <div className="panel-title">
+                  <h3>Xodimlar ro'yxati</h3>
+                  <p>Hozirda tizimda ro'yxatdan o'tgan barcha xodimlar va ularning rollari</p>
+                </div>
+              </div>
+              <div className="panel-body" style={{ padding: 0 }}>
+                <table className="table">
+                  <thead>
+                    <tr>
+                      <th style={{ width: '10%' }}>Avatar</th>
+                      <th style={{ width: '30%' }}>Ism (F.I.SH)</th>
+                      <th style={{ width: '30%' }}>E-pochta (Login)</th>
+                      <th style={{ width: '15%' }}>Roli</th>
+                      <th style={{ width: '15%', textAlign: 'center' }}>Amallar</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {users.map(u => (
+                      <tr key={u.id}>
+                        <td>
+                          <div style={{
+                            width: '36px',
+                            height: '36px',
+                            borderRadius: '50%',
+                            background: u.role === 'admin' ? 'linear-gradient(135deg, #ec4899 0%, #8b5cf6 100%)' : 'var(--color-primary-light)',
+                            color: u.role === 'admin' ? '#FFF' : 'var(--color-primary)',
+                            display: 'flex',
+                            alignItems: 'center',
+                            justifyContent: 'center',
+                            fontWeight: '600',
+                            fontSize: '0.9rem'
+                          }}>
+                            {u.name ? u.name.substring(0, 2).toUpperCase() : 'US'}
+                          </div>
+                        </td>
+                        <td>
+                          <strong style={{ fontSize: '0.9rem', color: 'var(--color-text-main)' }}>{u.name}</strong>
+                        </td>
+                        <td>
+                          <span style={{ fontSize: '0.85rem', color: 'var(--color-text-muted)' }}>{u.email}</span>
+                        </td>
+                        <td>
+                          <span className={`badge ${u.role === 'admin' ? 'badge-danger' : 'badge-info'}`} style={{ textTransform: 'capitalize' }}>
+                            {u.role === 'admin' ? 'Admin' : 'Sotuvchi'}
+                          </span>
+                        </td>
+                        <td style={{ textAlign: 'center' }}>
+                          {u.email !== currentUser.email && u.email !== 'admin@vidalita.uz' ? (
+                            <button
+                              type="button"
+                              className="btn btn-secondary"
+                              style={{ padding: '0.3rem 0.5rem', borderColor: 'var(--color-danger-light)', background: 'rgba(239, 68, 68, 0.05)', color: '#ef4444' }}
+                              onClick={() => handleDeleteUser(u.id, u.email)}
+                            >
+                              <Trash2 size={14} />
+                            </button>
+                          ) : (
+                            <span style={{ fontSize: '0.8rem', color: 'var(--color-text-light)' }}>Cheklangan</span>
+                          )}
+                        </td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+            </div>
+          </>
+        )}
+
       </main>
 
       {/* ========================================================================= */}
@@ -2469,6 +2994,82 @@ service cloud.firestore {
               <button type="submit" className="btn btn-primary">Mahsulotni Yaratish</button>
             </div>
           </form>
+        </div>
+      )}
+
+      {/* MODAL: YANGI XODIM QO'SHISH */}
+      {isAddUserModalOpen && currentUser && currentUser.role === 'admin' && (
+        <div className="modal-overlay">
+          <div className="modal-content" style={{ maxWidth: '450px' }}>
+            <div className="modal-header">
+              <h3>Yangi Xodim / Sotuvchi Qo'shish</h3>
+              <button type="button" className="modal-close-btn" onClick={() => setIsAddUserModalOpen(false)}>
+                <X size={18} />
+              </button>
+            </div>
+            <form onSubmit={handleAddUser}>
+              <div className="modal-body">
+                <div style={{ display: 'flex', flexDirection: 'column', gap: '1rem' }}>
+                  <div className="form-group">
+                    <label style={{ display: 'block', marginBottom: '0.4rem', fontSize: '0.85rem', fontWeight: 500 }}>Xodim Ismi*</label>
+                    <input
+                      type="text"
+                      className="form-control"
+                      required
+                      placeholder="Masalan: Sardor Aliyev"
+                      value={userForm.name}
+                      onChange={e => setUserForm(prev => ({ ...prev, name: e.target.value }))}
+                      style={{ width: '100%', boxSizing: 'border-box' }}
+                    />
+                  </div>
+
+                  <div className="form-group">
+                    <label style={{ display: 'block', marginBottom: '0.4rem', fontSize: '0.85rem', fontWeight: 500 }}>E-pochta manzili (Logini)*</label>
+                    <input
+                      type="email"
+                      className="form-control"
+                      required
+                      placeholder="masalan: sardor@vidalita.uz"
+                      value={userForm.email}
+                      onChange={e => setUserForm(prev => ({ ...prev, email: e.target.value }))}
+                      style={{ width: '100%', boxSizing: 'border-box' }}
+                    />
+                  </div>
+
+                  <div className="form-group">
+                    <label style={{ display: 'block', marginBottom: '0.4rem', fontSize: '0.85rem', fontWeight: 500 }}>Parol*</label>
+                    <input
+                      type="password"
+                      className="form-control"
+                      required
+                      placeholder="••••••••"
+                      value={userForm.password}
+                      onChange={e => setUserForm(prev => ({ ...prev, password: e.target.value }))}
+                      style={{ width: '100%', boxSizing: 'border-box' }}
+                    />
+                  </div>
+
+                  <div className="form-group">
+                    <label style={{ display: 'block', marginBottom: '0.4rem', fontSize: '0.85rem', fontWeight: 500 }}>Lavozimi (Roli)*</label>
+                    <select
+                      className="form-control"
+                      required
+                      value={userForm.role}
+                      onChange={e => setUserForm(prev => ({ ...prev, role: e.target.value }))}
+                      style={{ width: '100%', boxSizing: 'border-box' }}
+                    >
+                      <option value="sotuvchi">Sotuvchi (Cashier)</option>
+                      <option value="admin">Admin (Full Access)</option>
+                    </select>
+                  </div>
+                </div>
+              </div>
+              <div className="modal-footer">
+                <button type="button" className="btn btn-secondary" onClick={() => setIsAddUserModalOpen(false)}>Bekor qilish</button>
+                <button type="submit" className="btn btn-primary">Xodimni Yaratish</button>
+              </div>
+            </form>
+          </div>
         </div>
       )}
 
