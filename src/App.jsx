@@ -1508,7 +1508,7 @@ export default function App() {
           width: '100%',
           maxWidth: '420px',
           padding: '2.5rem',
-          boxShadow: '0 25px 50px -12px rgba(0, 0, 0, 0.5)',
+          boxShadow: 'none',
           color: '#f8fafc',
           boxSizing: 'border-box'
         }}>
@@ -1526,7 +1526,7 @@ export default function App() {
               alignItems: 'center',
               justifyContent: 'center',
               margin: '0 auto 1rem auto',
-              boxShadow: '0 8px 16px rgba(236, 72, 153, 0.3)'
+              boxShadow: 'none'
             }}>V</div>
             <h1 style={{ fontSize: '1.75rem', fontWeight: 'bold', margin: '0 0 0.25rem 0', letterSpacing: '-0.025em' }}>Vidalita</h1>
             <p style={{ fontSize: '0.875rem', color: '#94a3b8', margin: 0 }}>POS & Cloud Tizimiga Kirish</p>
@@ -1609,7 +1609,7 @@ export default function App() {
                 cursor: 'pointer',
                 transition: 'opacity 0.2s',
                 marginTop: '0.5rem',
-                boxShadow: '0 4px 12px rgba(139, 92, 246, 0.25)'
+                boxShadow: 'none'
               }}
             >
               Tizimga Kirish
