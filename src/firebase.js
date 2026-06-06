@@ -13,9 +13,20 @@ export const firebaseConfig = {
   measurementId: import.meta.env.VITE_FIREBASE_MEASUREMENT_ID || ""
 };
 
-// Initialize Firebase
-const app = initializeApp(firebaseConfig);
+let app = null;
+let db = null;
+let auth = null;
 
-// Initialize Cloud Firestore and export
-export const db = getFirestore(app);
-export const auth = getAuth(app);
+if (firebaseConfig.apiKey && firebaseConfig.apiKey !== "") {
+  try {
+    app = initializeApp(firebaseConfig);
+    db = getFirestore(app);
+    auth = getAuth(app);
+  } catch (err) {
+    console.error("Firebase initialization failed:", err);
+  }
+} else {
+  console.warn("VITE_FIREBASE_API_KEY is missing. Firebase will run in offline mode.");
+}
+
+export { app, db, auth };

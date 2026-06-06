@@ -419,7 +419,7 @@ export default function App() {
   }, [isProfileDropdownOpen]);
 
   useEffect(() => {
-    if (firebaseActive) {
+    if (firebaseActive && auth) {
       const unsubAuth = onAuthStateChanged(auth, async (user) => {
         if (user) {
           try {
@@ -483,6 +483,11 @@ export default function App() {
     let unsubscribes = [];
     
     const initializeFirestoreSync = async () => {
+      if (!db || !auth) {
+        setFirebaseActive(false);
+        setFirebaseLoading(false);
+        return;
+      }
       try {
         setFirebaseLoading(true);
 
