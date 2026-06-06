@@ -69,14 +69,15 @@ import {
 } from 'firebase/firestore';
 
 // Data versiyasi — o'zgartirsa eski localStorage avtomatik tozalanadi
-const DATA_VERSION = 'v4-vidalita-real-prices';
+const DATA_VERSION = 'v5-vidalita-single-admin-auth-reset';
 
 export default function App() {
   // --- Eski keshni versiya asosida tozalash ---
   if (localStorage.getItem('beauty_data_version') !== DATA_VERSION) {
     [
       'beauty_products', 'beauty_raw_materials', 'beauty_bundles',
-      'beauty_channels', 'beauty_logs', 'beauty_transactions', 'beauty_cart'
+      'beauty_channels', 'beauty_logs', 'beauty_transactions', 'beauty_cart',
+      'beauty_users', 'beauty_current_user'
     ].forEach(k => localStorage.removeItem(k));
     localStorage.setItem('beauty_data_version', DATA_VERSION);
   }
@@ -135,25 +136,11 @@ export default function App() {
     if (saved) return JSON.parse(saved);
     const defaultUsers = [
       {
-        id: 'user-admin',
-        name: 'Diyora (Admin)',
-        email: 'admin@vidalita.uz',
-        password: 'admin123',
-        role: 'admin'
-      },
-      {
         id: 'user-admin-joxadevoo',
         name: 'Joxadevoo (Admin)',
         email: 'joxadevoo@gmail.com',
         password: 'admin123',
         role: 'admin'
-      },
-      {
-        id: 'user-seller-1',
-        name: 'Sotuvchi',
-        email: 'sotuvchi@vidalita.uz',
-        password: 'sotuvchi123',
-        role: 'sotuvchi'
       }
     ];
     localStorage.setItem('beauty_users', JSON.stringify(defaultUsers));
@@ -220,11 +207,11 @@ export default function App() {
           userCredential = await signInWithEmailAndPassword(auth, email, password);
         } catch (authErr) {
           if ((authErr.code === 'auth/user-not-found' || authErr.code === 'auth/invalid-credential') && 
-              (email.toLowerCase() === 'admin@vidalita.uz' || email.toLowerCase() === 'joxadevoo@gmail.com') && 
+              email.toLowerCase() === 'joxadevoo@gmail.com' && 
               password === 'admin123') {
             userCredential = await createUserWithEmailAndPassword(auth, email, password);
             await setDoc(doc(db, 'users', userCredential.user.uid), {
-              name: email.toLowerCase() === 'joxadevoo@gmail.com' ? "Joxadevoo (Admin)" : "Diyora (Admin)",
+              name: "Joxadevoo (Admin)",
               email: email.toLowerCase(),
               role: "admin"
             });
@@ -238,9 +225,9 @@ export default function App() {
           const userData = userDoc.data();
           const loggedIn = {
             uid: userCredential.user.uid,
-            name: userData.name || (email.toLowerCase() === 'joxadevoo@gmail.com' ? "Joxadevoo (Admin)" : "Admin"),
+            name: userData.name || "Joxadevoo (Admin)",
             email: email,
-            role: userData.role || ((email.toLowerCase() === 'admin@vidalita.uz' || email.toLowerCase() === 'joxadevoo@gmail.com') ? 'admin' : 'sotuvchi')
+            role: userData.role || (email.toLowerCase() === 'joxadevoo@gmail.com' ? 'admin' : 'sotuvchi')
           };
           setCurrentUser(loggedIn);
           localStorage.setItem('beauty_current_user', JSON.stringify(loggedIn));
@@ -248,9 +235,9 @@ export default function App() {
         } else {
           const fallbackUser = {
             uid: userCredential.user.uid,
-            name: email.toLowerCase() === 'joxadevoo@gmail.com' ? "Joxadevoo (Admin)" : email.split('@')[0],
+            name: "Joxadevoo (Admin)",
             email: email,
-            role: (email.toLowerCase() === 'admin@vidalita.uz' || email.toLowerCase() === 'joxadevoo@gmail.com') ? 'admin' : 'sotuvchi'
+            role: email.toLowerCase() === 'joxadevoo@gmail.com' ? 'admin' : 'sotuvchi'
           };
           await setDoc(doc(db, 'users', userCredential.user.uid), {
             name: fallbackUser.name,
@@ -417,16 +404,16 @@ export default function App() {
               const userData = userDoc.data();
               const loggedIn = {
                 uid: user.uid,
-                name: userData.name || (user.email.toLowerCase() === 'joxadevoo@gmail.com' ? "Joxadevoo (Admin)" : user.email.split('@')[0]),
+                name: userData.name || "Joxadevoo (Admin)",
                 email: user.email,
-                role: userData.role || ((user.email.toLowerCase() === 'admin@vidalita.uz' || user.email.toLowerCase() === 'joxadevoo@gmail.com') ? 'admin' : 'sotuvchi')
+                role: userData.role || (user.email.toLowerCase() === 'joxadevoo@gmail.com' ? 'admin' : 'sotuvchi')
               };
               setCurrentUser(loggedIn);
               localStorage.setItem('beauty_current_user', JSON.stringify(loggedIn));
             } else {
-              if (user.email.toLowerCase() === 'admin@vidalita.uz' || user.email.toLowerCase() === 'joxadevoo@gmail.com') {
+              if (user.email.toLowerCase() === 'joxadevoo@gmail.com') {
                 const adminDoc = {
-                  name: user.email.toLowerCase() === 'joxadevoo@gmail.com' ? "Joxadevoo (Admin)" : "Diyora (Admin)",
+                  name: "Joxadevoo (Admin)",
                   email: user.email,
                   role: 'admin'
                 };
@@ -552,11 +539,11 @@ export default function App() {
           
           if (list.length === 0) {
             const adminDoc = {
-              name: "Diyora (Admin)",
-              email: "admin@vidalita.uz",
+              name: "Joxadevoo (Admin)",
+              email: "joxadevoo@gmail.com",
               role: "admin"
             };
-            setDoc(doc(db, 'users', 'admin-default-id'), adminDoc);
+            setDoc(doc(db, 'users', 'admin-default-joxadevoo'), adminDoc);
           }
         }, (err) => {
           console.warn("Firestore users listener failed (unauthorized or missing):", err);
@@ -1555,7 +1542,7 @@ export default function App() {
               <input
                 type="email"
                 required
-                placeholder="admin@vidalita.uz"
+                placeholder="joxadevoo@gmail.com"
                 value={loginEmail}
                 onChange={e => setLoginEmail(e.target.value)}
                 style={{
@@ -2755,7 +2742,7 @@ service cloud.firestore {
                           </span>
                         </td>
                         <td style={{ textAlign: 'center' }}>
-                          {u.email !== currentUser.email && u.email.toLowerCase() !== 'admin@vidalita.uz' && u.email.toLowerCase() !== 'joxadevoo@gmail.com' ? (
+                          {u.email !== currentUser.email && u.email.toLowerCase() !== 'joxadevoo@gmail.com' ? (
                             <button
                               type="button"
                               className="btn btn-secondary"
