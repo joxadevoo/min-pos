@@ -202,6 +202,19 @@ export default function App() {
   const [cancellingTrx, setCancellingTrx] = useState(null);
   const [activePOSInvoice, setActivePOSInvoice] = useState(null);
 
+  // --- Historical Transactions Manual Entry States ---
+  const [histDate, setHistDate] = useState("2026-06-04");
+  const [histTime, setHistTime] = useState("12:00");
+  const [histCustomerName, setHistCustomerName] = useState("");
+  const [histCustomerPhone, setHistCustomerPhone] = useState("");
+  const [histPaymentMethod, setHistPaymentMethod] = useState("Naqd (Cash)");
+  const [histMixCash, setHistMixCash] = useState(0);
+  const [histMixCard, setHistMixCard] = useState(0);
+  const [histItems, setHistItems] = useState([]);
+  const [histSelectedSku, setHistSelectedSku] = useState("");
+  const [histSelectedQty, setHistSelectedQty] = useState(1);
+  const [histSelectedPrice, setHistSelectedPrice] = useState(0);
+
   const handleLogin = async (e) => {
     e.preventDefault();
     setLoginError('');
@@ -1544,6 +1557,181 @@ export default function App() {
     }
   };
 
+  // --- HISTORICAL TRANSACTIONS INPUT HELPERS ---
+  const histTotalAmount = histItems.reduce((sum, item) => sum + (item.price * item.qty), 0);
+
+  const handleHistMixCashChange = (val) => {
+    const cash = Math.min(histTotalAmount, Math.max(0, parseFloat(val) || 0));
+    setHistMixCash(cash);
+    setHistMixCard(histTotalAmount - cash);
+  };
+
+  const handleHistMixCardChange = (val) => {
+    const card = Math.min(histTotalAmount, Math.max(0, parseFloat(val) || 0));
+    setHistMixCard(card);
+    setHistMixCash(histTotalAmount - card);
+  };
+
+  useEffect(() => {
+    if (histPaymentMethod === 'Aralash (Mix)') {
+      if (histMixCash > histTotalAmount) {
+        setHistMixCash(histTotalAmount);
+        setHistMixCard(0);
+      } else {
+        setHistMixCard(histTotalAmount - histMixCash);
+      }
+    }
+  }, [histTotalAmount]);
+
+  useEffect(() => {
+    if (histPaymentMethod === 'Aralash (Mix)') {
+      setHistMixCash(Math.round(histTotalAmount / 2));
+      setHistMixCard(histTotalAmount - Math.round(histTotalAmount / 2));
+    }
+  }, [histPaymentMethod]);
+
+  // When selected SKU changes, auto-set default price
+  useEffect(() => {
+    if (!histSelectedSku) return;
+    let foundPrice = 0;
+    products.forEach(p => {
+      const v = p.variants.find(varItem => varItem.sku === histSelectedSku);
+      if (v) {
+        foundPrice = v.price;
+      }
+    });
+    setHistSelectedPrice(foundPrice);
+  }, [histSelectedSku, products]);
+
+  const addHistItem = () => {
+    if (!histSelectedSku) return;
+    let productName = "";
+    products.forEach(p => {
+      const v = p.variants.find(varItem => varItem.sku === histSelectedSku);
+      if (v) {
+        productName = p.name;
+      }
+    });
+
+    const existingIndex = histItems.findIndex(i => i.sku === histSelectedSku);
+    if (existingIndex > -1) {
+      setHistItems(prev => prev.map((item, idx) => idx === existingIndex 
+        ? { ...item, qty: item.qty + parseInt(histSelectedQty, 10), price: parseFloat(histSelectedPrice) } 
+        : item
+      ));
+    } else {
+      setHistItems(prev => [...prev, {
+        sku: histSelectedSku,
+        name: productName || histSelectedSku,
+        price: parseFloat(histSelectedPrice),
+        qty: parseInt(histSelectedQty, 10)
+      }]);
+    }
+    setHistSelectedSku("");
+    setHistSelectedQty(1);
+    setHistSelectedPrice(0);
+  };
+
+  const removeHistItem = (sku) => {
+    setHistItems(prev => prev.filter(i => i.sku !== sku));
+  };
+
+  const resetHistStates = () => {
+    setHistDate("2026-06-04");
+    setHistTime("12:00");
+    setHistCustomerName("");
+    setHistCustomerPhone("");
+    setHistPaymentMethod("Naqd (Cash)");
+    setHistMixCash(0);
+    setHistMixCard(0);
+    setHistItems([]);
+    setHistSelectedSku("");
+    setHistSelectedQty(1);
+    setHistSelectedPrice(0);
+  };
+
+  const submitHistoricalTransaction = async (e) => {
+    e.preventDefault();
+    if (!currentUser || currentUser.role !== 'admin') {
+      showToast("Taqiqlangan", "Tarixiy savdoni kiritish uchun faqat admin huquqi talab etiladi!", "error");
+      return;
+    }
+
+    if (histItems.length === 0) {
+      showToast("Xatolik", "Iltimos, kamida bitta mahsulot qo'shing.", "warning");
+      return;
+    }
+
+    const newTrxId = `TRX-HIST-${Date.now().toString().slice(-6)}`;
+    const newTrx = {
+      id: newTrxId,
+      date: histDate,
+      time: histTime,
+      customerName: histCustomerName || "Tarixiy Mijoz",
+      customerPhone: histCustomerPhone || "Kiritilmagan",
+      paymentMethod: histPaymentMethod === 'Aralash (Mix)'
+        ? `Aralash (Naqd: ${formatSum(histMixCash)} / Karta: ${formatSum(histMixCard)})`
+        : histPaymentMethod,
+      mixPayDetails: histPaymentMethod === 'Aralash (Mix)' ? { cash: histMixCash, card: histMixCard } : null,
+      items: [...histItems],
+      subtotal: parseFloat(histTotalAmount.toFixed(2)),
+      discountPercent: 0,
+      discountAmount: 0,
+      vatAmount: 0,
+      totalAmount: parseFloat(histTotalAmount.toFixed(2)),
+      isHistorical: true
+    };
+
+    if (firebaseActive) {
+      try {
+        setFirebaseLoading(true);
+        const batch = writeBatch(db);
+
+        // Save transaction to Firestore (without touching products!)
+        batch.set(doc(db, "transactions", newTrxId), {
+          ...newTrx,
+          timestamp: serverTimestamp()
+        });
+
+        // Add a system log
+        const logId = `log-${Date.now()}`;
+        const newLog = {
+          id: logId,
+          time: newTrx.time,
+          channel: "Tizim (Historical)",
+          action: "Tarixiy Savdo Kiritildi",
+          details: `${newTrxId} chek kiritildi. Summa: ${formatSum(histTotalAmount)}. (Zaxira o'zgartirilmadi)`,
+          change: 0,
+          type: "info"
+        };
+        batch.set(doc(db, "logs", logId), {
+          ...newLog,
+          timestamp: serverTimestamp()
+        });
+
+        await batch.commit();
+        showToast("Muvaffaqiyatli", `Tarixiy faktura ${newTrxId} muvaffaqiyatli kiritildi.`, "success");
+        setActiveModal(null);
+        resetHistStates();
+      } catch (err) {
+        console.error("Firestore historical checkout failed:", err);
+        showToast("Xatolik", "Firestore-ga yozib bo'lmadi. Lokal saqlandi.", "info");
+        setTransactions(prev => [newTrx, ...prev]);
+        addSystemLog("Tarixiy Savdo (Offline)", `${newTrxId} offline kiritildi.`, 0, "Tizim (Historical)");
+        setActiveModal(null);
+        resetHistStates();
+      } finally {
+        setFirebaseLoading(false);
+      }
+    } else {
+      setTransactions(prev => [newTrx, ...prev]);
+      addSystemLog("Tarixiy Savdo (Offline)", `${newTrxId} offline kiritildi.`, 0, "Tizim (Historical)");
+      showToast("Muvaffaqiyatli", `Tarixiy faktura ${newTrxId} lokal saqlandi.`, "success");
+      setActiveModal(null);
+      resetHistStates();
+    }
+  };
+
   // --- ADD BATCH MODAL ACTION ---
   const submitAddBatch = async (e) => {
     e.preventDefault();
@@ -2347,6 +2535,21 @@ service cloud.firestore {
                 <h1>Fakturalar va Savdo Tarixi (Invoices History)</h1>
                 <p>POS terminali orqali amalga oshirilgan barcha sotuvlar ro'yxati va chek qayta chiqarish</p>
               </div>
+              {currentUser && currentUser.role === 'admin' && (
+                <div className="header-actions">
+                  <button 
+                    className="btn btn-primary" 
+                    onClick={() => {
+                      resetHistStates();
+                      setModalError('');
+                      setActiveModal('add-historical-sale');
+                    }}
+                  >
+                    <Plus size={15} />
+                    <span>Tarixiy savdo qo'shish</span>
+                  </button>
+                </div>
+              )}
             </div>
 
             {/* STATS OVERVIEW */}
@@ -2438,6 +2641,7 @@ service cloud.firestore {
                               <td style={{ fontWeight: 600, fontFamily: 'monospace' }}>
                                 {t.id}
                                 {isCancelled && <span className="badge badge-danger" style={{ marginLeft: '6px', fontSize: '0.65rem' }}>Bekor qilingan</span>}
+                                {t.isHistorical && <span className="badge badge-info" style={{ marginLeft: '6px', fontSize: '0.65rem', backgroundColor: 'rgba(59, 130, 246, 0.1)', color: '#3B82F6' }}>Tarixiy</span>}
                               </td>
                               <td>{t.date} | {t.time}</td>
                               <td>
@@ -3340,6 +3544,262 @@ service cloud.firestore {
               </button>
               <button type="submit" className="btn btn-danger" style={{ backgroundColor: '#EF4444', borderColor: '#EF4444', color: '#FFF' }}>
                 Fakturani bekor qilish
+              </button>
+            </div>
+          </form>
+        </div>
+      )}
+
+      {/* MODAL: ADD HISTORICAL SALE */}
+      {activeModal === 'add-historical-sale' && (
+        <div className="modal-overlay">
+          <form className="modal-content" onSubmit={submitHistoricalTransaction} style={{ maxWidth: '650px' }}>
+            <div className="modal-header">
+              <h3>Tarixiy Savdo Ma'lumotlarini Kiritish</h3>
+              <button type="button" className="modal-close-btn" onClick={() => { setActiveModal(null); resetHistStates(); }}>
+                <X size={18} />
+              </button>
+            </div>
+
+            <div className="modal-body" style={{ display: 'flex', flexDirection: 'column', gap: '0.8rem', maxHeight: '75vh', overflowY: 'auto' }}>
+              {modalError && (
+                <div style={{ color: 'var(--color-warning)', padding: '0.5rem', backgroundColor: 'var(--color-warning-light)', borderRadius: '4px', fontSize: '0.85rem' }}>
+                  {modalError}
+                </div>
+              )}
+
+              {/* DATE & TIME */}
+              <div className="form-row">
+                <div className="form-group">
+                  <label style={{ fontWeight: 600 }}>Sana (Date)*</label>
+                  <input
+                    type="date"
+                    className="form-control"
+                    required
+                    value={histDate}
+                    onChange={(e) => setHistDate(e.target.value)}
+                  />
+                </div>
+                <div className="form-group">
+                  <label style={{ fontWeight: 600 }}>Vaqt (Time)*</label>
+                  <input
+                    type="time"
+                    className="form-control"
+                    required
+                    value={histTime}
+                    onChange={(e) => setHistTime(e.target.value)}
+                  />
+                </div>
+              </div>
+
+              {/* CUSTOMER */}
+              <div className="form-row">
+                <div className="form-group">
+                  <label style={{ fontWeight: 600 }}>Mijoz Ismi</label>
+                  <input
+                    type="text"
+                    className="form-control"
+                    placeholder="Masalan: Nilufar"
+                    value={histCustomerName}
+                    onChange={(e) => setHistCustomerName(e.target.value)}
+                  />
+                </div>
+                <div className="form-group">
+                  <label style={{ fontWeight: 600 }}>Mijoz Telefoni</label>
+                  <input
+                    type="text"
+                    className="form-control"
+                    placeholder="+998 90..."
+                    value={histCustomerPhone}
+                    onChange={(e) => setHistCustomerPhone(e.target.value)}
+                  />
+                </div>
+              </div>
+
+              {/* PAYMENT METHOD */}
+              <div className="form-group">
+                <label style={{ fontWeight: 600, display: 'block', marginBottom: '0.25rem' }}>To'lov Usuli (Payment Method)</label>
+                <div className="pay-methods-grid" style={{ gridTemplateColumns: 'repeat(4, 1fr)', gap: '0.4rem' }}>
+                  {[
+                    { id: 'Naqd (Cash)', title: 'Naqd (Cash)', Icon: Banknote },
+                    { id: 'Karta (Card)', title: 'Karta (Card)', Icon: CreditCard },
+                    { id: 'Click/Payme', title: 'Click/Payme', Icon: Smartphone },
+                    { id: 'Aralash (Mix)', title: 'Aralash (Mix)', Icon: Layers }
+                  ].map(method => (
+                    <button
+                      key={method.id}
+                      type="button"
+                      className={`pay-method-card ${histPaymentMethod === method.id ? 'active' : ''}`}
+                      onClick={() => setHistPaymentMethod(method.id)}
+                      style={{ padding: '0.4rem 0.15rem' }}
+                    >
+                      <method.Icon size={16} className="pay-method-icon" />
+                      <span className="pay-method-title" style={{ fontSize: '0.68rem' }}>{method.title}</span>
+                    </button>
+                  ))}
+                </div>
+              </div>
+
+              {histPaymentMethod === 'Aralash (Mix)' && (
+                <div style={{ 
+                  backgroundColor: 'rgba(0,0,0,0.02)', 
+                  padding: '0.75rem', 
+                  borderRadius: '6px', 
+                  display: 'flex', 
+                  flexDirection: 'column', 
+                  gap: '0.5rem',
+                  border: '1px dashed var(--color-border || rgba(0,0,0,0.1))'
+                }}>
+                  <div style={{ display: 'flex', gap: '0.5rem' }}>
+                    <div className="form-group" style={{ margin: 0, flex: 1 }}>
+                      <label style={{ fontSize: '0.7rem', fontWeight: 600 }}>Naqd summasi (Cash)</label>
+                      <input
+                        type="number"
+                        min="0"
+                        max={histTotalAmount}
+                        className="form-control"
+                        value={histMixCash}
+                        onChange={(e) => handleHistMixCashChange(e.target.value)}
+                        style={{ height: '32px', fontSize: '0.85rem', padding: '0.3rem 0.5rem' }}
+                      />
+                    </div>
+                    <div className="form-group" style={{ margin: 0, flex: 1 }}>
+                      <label style={{ fontSize: '0.7rem', fontWeight: 600 }}>Karta summasi (Card)</label>
+                      <input
+                        type="number"
+                        min="0"
+                        max={histTotalAmount}
+                        className="form-control"
+                        value={histMixCard}
+                        onChange={(e) => handleHistMixCardChange(e.target.value)}
+                        style={{ height: '32px', fontSize: '0.85rem', padding: '0.3rem 0.5rem' }}
+                      />
+                    </div>
+                  </div>
+                </div>
+              )}
+
+              {/* ADD ITEM SECTION */}
+              <div style={{ border: '1px solid var(--color-border)', borderRadius: '6px', padding: '0.75rem', backgroundColor: 'rgba(0,0,0,0.01)' }}>
+                <h4 style={{ margin: '0 0 0.5rem 0', fontSize: '0.85rem', fontWeight: 600 }}>Mahsulot qo'shish (Add Item to Invoice)</h4>
+                <div style={{ display: 'flex', flexWrap: 'wrap', gap: '0.5rem', alignItems: 'flex-end' }}>
+                  <div className="form-group" style={{ margin: 0, flex: '2 1 200px' }}>
+                    <label style={{ fontSize: '0.7rem' }}>Mahsulot va Variant*</label>
+                    <select
+                      className="form-control"
+                      value={histSelectedSku}
+                      onChange={(e) => setHistSelectedSku(e.target.value)}
+                      style={{ height: '34px', fontSize: '0.8rem', padding: '0.2rem' }}
+                    >
+                      <option value="">-- Mahsulotni tanlang --</option>
+                      {products.map(p => 
+                        p.variants.map(v => (
+                          <option key={v.sku} value={v.sku}>
+                            {p.name} ({v.name}) - {formatSum(v.price)}
+                          </option>
+                        ))
+                      )}
+                    </select>
+                  </div>
+                  <div className="form-group" style={{ margin: 0, flex: '1 1 80px' }}>
+                    <label style={{ fontSize: '0.7rem' }}>Sotilgan narx*</label>
+                    <input
+                      type="number"
+                      className="form-control"
+                      min="0"
+                      value={histSelectedPrice}
+                      onChange={(e) => setHistSelectedPrice(e.target.value)}
+                      style={{ height: '34px', fontSize: '0.8rem', padding: '0.3rem' }}
+                    />
+                  </div>
+                  <div className="form-group" style={{ margin: 0, flex: '1 1 60px' }}>
+                    <label style={{ fontSize: '0.7rem' }}>Soni*</label>
+                    <input
+                      type="number"
+                      className="form-control"
+                      min="1"
+                      value={histSelectedQty}
+                      onChange={(e) => setHistSelectedQty(e.target.value)}
+                      style={{ height: '34px', fontSize: '0.8rem', padding: '0.3rem' }}
+                    />
+                  </div>
+                  <button
+                    type="button"
+                    className="btn btn-secondary"
+                    onClick={addHistItem}
+                    disabled={!histSelectedSku}
+                    style={{ height: '34px', padding: '0 1rem' }}
+                  >
+                    Qo'shish
+                  </button>
+                </div>
+              </div>
+
+              {/* LIST OF ADDED ITEMS */}
+              <div style={{ border: '1px solid var(--color-border)', borderRadius: '6px', overflow: 'hidden' }}>
+                <div style={{ padding: '0.5rem 0.75rem', backgroundColor: 'rgba(0,0,0,0.03)', fontSize: '0.8rem', fontWeight: 600, borderBottom: '1px solid var(--color-border)' }}>
+                  Invoice tovarlari ro'yxati
+                </div>
+                <div style={{ maxHeight: '140px', overflowY: 'auto' }}>
+                  {histItems.length === 0 ? (
+                    <div style={{ padding: '1.5rem', textAlign: 'center', color: 'var(--color-text-muted)', fontSize: '0.8rem' }}>
+                      Hozircha hech qanday mahsulot qo'shilmagan.
+                    </div>
+                  ) : (
+                    <table className="custom-table" style={{ fontSize: '0.78rem' }}>
+                      <thead>
+                        <tr>
+                          <th>Tovar nomi</th>
+                          <th>Narx</th>
+                          <th>Soni</th>
+                          <th>Jami</th>
+                          <th style={{ width: '40px' }}></th>
+                        </tr>
+                      </thead>
+                      <tbody>
+                        {histItems.map(item => (
+                          <tr key={item.sku}>
+                            <td>
+                              <div>{item.name}</div>
+                              <span style={{ fontSize: '0.68rem', color: 'var(--color-text-muted)' }}>{item.sku}</span>
+                            </td>
+                            <td>{formatSum(item.price)}</td>
+                            <td>{item.qty} dona</td>
+                            <td style={{ fontWeight: 600 }}>{formatSum(item.price * item.qty)}</td>
+                            <td>
+                              <button
+                                type="button"
+                                style={{ background: 'none', border: 'none', cursor: 'pointer', color: '#EF4444' }}
+                                onClick={() => removeHistItem(item.sku)}
+                              >
+                                <Trash2 size={13} />
+                              </button>
+                            </td>
+                          </tr>
+                        ))}
+                      </tbody>
+                    </table>
+                  )}
+                </div>
+              </div>
+
+              {/* GRAND TOTAL SUMMARY */}
+              <div style={{ display: 'flex', justifyContent: 'space-between', padding: '0.75rem', backgroundColor: 'rgba(0,0,0,0.02)', borderRadius: '6px', fontWeight: 600, fontSize: '0.9rem' }}>
+                <span>Umumiy Summa:</span>
+                <span style={{ color: 'var(--color-primary)' }}>{formatSum(histTotalAmount)}</span>
+              </div>
+
+              <p style={{ color: 'var(--color-text-muted)', fontSize: '0.75rem', lineHeight: 1.4, margin: 0 }}>
+                * Tarixiy savdolarni kiritishda joriy ombordagi zaxiralar kamaytirilmaydi. Barcha tovarlar faqat faktura tarixiga va hisobotlarga qo'shiladi.
+              </p>
+            </div>
+
+            <div className="modal-footer" style={{ borderTop: '1px solid var(--color-border)', paddingTop: '0.75rem', display: 'flex', gap: '8px', justifyContent: 'flex-end' }}>
+              <button type="button" className="btn btn-secondary" onClick={() => { setActiveModal(null); resetHistStates(); }}>
+                Yopish
+              </button>
+              <button type="submit" className="btn btn-primary" disabled={histItems.length === 0}>
+                Fakturani Saqlash
               </button>
             </div>
           </form>
