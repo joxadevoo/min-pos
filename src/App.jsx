@@ -338,8 +338,8 @@ export default function App() {
 
   const handleAddUser = async (e) => {
     e.preventDefault();
-    if (!currentUser || currentUser.role !== 'admin') {
-      showToast("Taqiqlangan", "Ushbu amalni bajarish uchun admin huquqi talab etiladi!", "error");
+    if (!currentUser || (currentUser.role !== 'admin' && currentUser.role !== 'sotuvchi')) {
+      showToast("Taqiqlangan", "Ushbu amalni bajarish uchun admin yoki sotuvchi huquqi talab etiladi!", "error");
       return;
     }
     const { name, email, password, role } = userForm;
@@ -396,8 +396,8 @@ export default function App() {
   };
 
   const handleDeleteUser = async (userId, userEmail) => {
-    if (!currentUser || currentUser.role !== 'admin') {
-      showToast("Taqiqlangan", "Ushbu amalni bajarish uchun admin huquqi talab etiladi!", "error");
+    if (!currentUser || (currentUser.role !== 'admin' && currentUser.role !== 'sotuvchi')) {
+      showToast("Taqiqlangan", "Ushbu amalni bajarish uchun admin yoki sotuvchi huquqi talab etiladi!", "error");
       return;
     }
     const confirmDelete = confirm(`Haqiqatan ham "${userEmail}" xodimini tizimdan o'chirmoqchisiz?`);
@@ -419,11 +419,7 @@ export default function App() {
     }
   };
 
-  useEffect(() => {
-    if (currentUser && currentUser.role === 'sotuvchi' && (activeTab === 'inventory' || activeTab === 'users')) {
-      setActiveTab('pos');
-    }
-  }, [currentUser, activeTab]);
+  // Removed cashier redirect to allow full access to all tabs
 
   useEffect(() => {
     if (!isProfileDropdownOpen) return;
@@ -677,8 +673,8 @@ export default function App() {
 
   // --- DATABASE RESET / CLEAR FUNCTION ---
   const handleResetDatabase = async () => {
-    if (!currentUser || currentUser.role !== 'admin') {
-      showToast("Taqiqlangan", "Ushbu amalni bajarish uchun admin huquqi talab etiladi!", "error");
+    if (!currentUser || (currentUser.role !== 'admin' && currentUser.role !== 'sotuvchi')) {
+      showToast("Taqiqlangan", "Ushbu amalni bajarish uchun admin yoki sotuvchi huquqi talab etiladi!", "error");
       return;
     }
     const confirmWipe = window.confirm(
@@ -1433,8 +1429,8 @@ export default function App() {
 
   // --- CANCEL/VOID TRANSACTION ACTION ---
   const handleCancelTransaction = (trx) => {
-    if (!currentUser || currentUser.role !== 'admin') {
-      showToast("Taqiqlangan", "Fakturani bekor qilish uchun faqat admin huquqi talab etiladi!", "error");
+    if (!currentUser || (currentUser.role !== 'admin' && currentUser.role !== 'sotuvchi')) {
+      showToast("Taqiqlangan", "Fakturani bekor qilish uchun admin yoki sotuvchi huquqi talab etiladi!", "error");
       return;
     }
     setCancellingTrx(trx);
@@ -1445,8 +1441,8 @@ export default function App() {
 
   const submitCancelTransaction = async (e) => {
     e.preventDefault();
-    if (!currentUser || currentUser.role !== 'admin') {
-      showToast("Taqiqlangan", "Fakturani bekor qilish uchun faqat admin huquqi talab etiladi!", "error");
+    if (!currentUser || (currentUser.role !== 'admin' && currentUser.role !== 'sotuvchi')) {
+      showToast("Taqiqlangan", "Fakturani bekor qilish uchun admin yoki sotuvchi huquqi talab etiladi!", "error");
       return;
     }
 
@@ -1735,8 +1731,8 @@ export default function App() {
   // --- ADD BATCH MODAL ACTION ---
   const submitAddBatch = async (e) => {
     e.preventDefault();
-    if (!currentUser || currentUser.role !== 'admin') {
-      showToast("Taqiqlangan", "Ushbu amalni bajarish uchun admin huquqi talab etiladi!", "error");
+    if (!currentUser || (currentUser.role !== 'admin' && currentUser.role !== 'sotuvchi')) {
+      showToast("Taqiqlangan", "Ushbu amalni bajarish uchun admin yoki sotuvchi huquqi talab etiladi!", "error");
       return;
     }
     const { qty, expiryDate, mfgDate } = modalInputs;
@@ -1802,8 +1798,8 @@ export default function App() {
   // --- ADD PRODUCT MODAL ACTION ---
   const submitAddProduct = async (e) => {
     e.preventDefault();
-    if (!currentUser || currentUser.role !== 'admin') {
-      showToast("Taqiqlangan", "Ushbu amalni bajarish uchun admin huquqi talab etiladi!", "error");
+    if (!currentUser || (currentUser.role !== 'admin' && currentUser.role !== 'sotuvchi')) {
+      showToast("Taqiqlangan", "Ushbu amalni bajarish uchun admin yoki sotuvchi huquqi talab etiladi!", "error");
       return;
     }
     const { name, brand, category, skuPrefix, desc, variantName, variantSku, variantPrice, variantColor, reorderLevel } = modalInputs;
@@ -2062,7 +2058,7 @@ export default function App() {
             <FileText size={16} />
             <span>Fakturalar</span>
           </button>
-          {currentUser && currentUser.role === 'admin' && (
+          {currentUser && (currentUser.role === 'admin' || currentUser.role === 'sotuvchi') && (
             <>
               <button className={`nav-link-item ${activeTab === 'inventory' ? 'active' : ''}`} onClick={() => setActiveTab('inventory')}>
                 <Package size={16} />
@@ -2091,7 +2087,7 @@ export default function App() {
             )}
           </div>
 
-          {currentUser && currentUser.role === 'admin' && (
+          {currentUser && (currentUser.role === 'admin' || currentUser.role === 'sotuvchi') && (
             <button
               type="button"
               className="btn btn-secondary"
@@ -2671,7 +2667,7 @@ service cloud.firestore {
                                   <Printer size={12} />
                                   <span>Chek chiqarish</span>
                                 </button>
-                                {currentUser && currentUser.role === 'admin' && !isCancelled && (
+                                {currentUser && (currentUser.role === 'admin' || currentUser.role === 'sotuvchi') && !isCancelled && (
                                   <button
                                     className="btn btn-danger"
                                     style={{ padding: '0.4rem 0.8rem', fontSize: '0.8rem', marginLeft: '6px' }}
@@ -3187,7 +3183,7 @@ service cloud.firestore {
           </>
         )}
 
-        {activeTab === 'users' && currentUser && currentUser.role === 'admin' && (
+        {activeTab === 'users' && currentUser && (currentUser.role === 'admin' || currentUser.role === 'sotuvchi') && (
           <>
             <div className="page-header" style={{ paddingBottom: '0.75rem', marginBottom: '1rem' }}>
               <div className="header-title">
@@ -3961,7 +3957,7 @@ service cloud.firestore {
       )}
 
       {/* MODAL: YANGI XODIM QO'SHISH */}
-      {isAddUserModalOpen && currentUser && currentUser.role === 'admin' && (
+      {isAddUserModalOpen && currentUser && (currentUser.role === 'admin' || currentUser.role === 'sotuvchi') && (
         <div className="modal-overlay">
           <div className="modal-content" style={{ maxWidth: '450px' }}>
             <div className="modal-header">
