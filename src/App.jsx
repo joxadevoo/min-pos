@@ -191,6 +191,8 @@ export default function App() {
   const [posCategoryFilter, setPosCategoryFilter] = useState('All');
   const [selectedCustomer, setSelectedCustomer] = useState({ name: '', phone: '' });
   const [paymentMethod, setPaymentMethod] = useState('Naqd (Cash)');
+  const [mixPayCash, setMixPayCash] = useState(0);
+  const [mixPayCard, setMixPayCard] = useState(0);
   const [customDiscount, setCustomDiscount] = useState(0);
 
   // --- Modal Control ---
@@ -1042,6 +1044,37 @@ export default function App() {
   const discountAmount = subtotal * (customDiscount / 100);
   const totalAmount = subtotal - discountAmount;
 
+  // --- Mixed Payment Handlers & Sync ---
+  const handleMixCashChange = (val) => {
+    const cash = Math.min(totalAmount, Math.max(0, parseFloat(val) || 0));
+    setMixPayCash(cash);
+    setMixPayCard(totalAmount - cash);
+  };
+
+  const handleMixCardChange = (val) => {
+    const card = Math.min(totalAmount, Math.max(0, parseFloat(val) || 0));
+    setMixPayCard(card);
+    setMixPayCash(totalAmount - card);
+  };
+
+  useEffect(() => {
+    if (paymentMethod === 'Aralash (Mix)') {
+      if (mixPayCash > totalAmount) {
+        setMixPayCash(totalAmount);
+        setMixPayCard(0);
+      } else {
+        setMixPayCard(totalAmount - mixPayCash);
+      }
+    }
+  }, [totalAmount]);
+
+  useEffect(() => {
+    if (paymentMethod === 'Aralash (Mix)') {
+      setMixPayCash(Math.round(totalAmount / 2));
+      setMixPayCard(totalAmount - Math.round(totalAmount / 2));
+    }
+  }, [paymentMethod]);
+
   // Handle POS checkout transaction (atomic write batch or fallback)
   const handlePOSCheckout = async (e) => {
     e.preventDefault();
@@ -1070,7 +1103,10 @@ export default function App() {
       time: new Date().toLocaleTimeString('en-US', { hour12: false, hour: '2-digit', minute: '2-digit' }),
       customerName: selectedCustomer.name || "Anonim Mijoz",
       customerPhone: selectedCustomer.phone || "Kiritilmagan",
-      paymentMethod: paymentMethod,
+      paymentMethod: paymentMethod === 'Aralash (Mix)' 
+        ? `Aralash (Naqd: ${formatSum(mixPayCash)} / Karta: ${formatSum(mixPayCard)})` 
+        : paymentMethod,
+      mixPayDetails: paymentMethod === 'Aralash (Mix)' ? { cash: mixPayCash, card: mixPayCard } : null,
       items: [...cart],
       subtotal: parseFloat(subtotal.toFixed(2)),
       discountPercent: customDiscount,
@@ -2177,24 +2213,69 @@ service cloud.firestore {
                   {/* Clickable Payment Tiles (Cards) */}
                   <div className="form-group" style={{ marginTop: '0.5rem', marginBottom: '0.5rem' }}>
                     <label style={{ fontSize: '0.75rem', fontWeight: 600, display: 'block', marginBottom: '0.25rem' }}>To'lov Usuli (Payment Method)</label>
-                    <div className="pay-methods-grid">
+                    <div className="pay-methods-grid" style={{ gridTemplateColumns: 'repeat(4, 1fr)' }}>
                       {[
                         { id: 'Naqd (Cash)', title: 'Naqd (Cash)', Icon: Banknote },
                         { id: 'Karta (Card)', title: 'Karta (Card)', Icon: CreditCard },
-                        { id: 'Click/Payme', title: 'Click/Payme', Icon: Smartphone }
+                        { id: 'Click/Payme', title: 'Click/Payme', Icon: Smartphone },
+                        { id: 'Aralash (Mix)', title: 'Aralash (Mix)', Icon: Layers }
                       ].map(method => (
                         <button
                           key={method.id}
                           type="button"
                           className={`pay-method-card ${paymentMethod === method.id ? 'active' : ''}`}
                           onClick={() => setPaymentMethod(method.id)}
+                          style={{ padding: '0.4rem 0.15rem' }}
                         >
-                          <method.Icon size={18} className="pay-method-icon" />
-                          <span className="pay-method-title">{method.title}</span>
+                          <method.Icon size={16} className="pay-method-icon" />
+                          <span className="pay-method-title" style={{ fontSize: '0.68rem' }}>{method.title}</span>
                         </button>
                       ))}
                     </div>
                   </div>
+
+                  {paymentMethod === 'Aralash (Mix)' && (
+                    <div style={{ 
+                      backgroundColor: 'rgba(0,0,0,0.02)', 
+                      padding: '0.75rem', 
+                      borderRadius: '6px', 
+                      marginTop: '0.5rem', 
+                      display: 'flex', 
+                      flexDirection: 'column', 
+                      gap: '0.5rem',
+                      border: '1px dashed var(--color-border || rgba(0,0,0,0.1))'
+                    }}>
+                      <div style={{ display: 'flex', gap: '0.5rem' }}>
+                        <div className="form-group" style={{ margin: 0, flex: 1 }}>
+                          <label style={{ fontSize: '0.7rem', fontWeight: 600 }}>Naqd summasi (Cash)</label>
+                          <input
+                            type="number"
+                            min="0"
+                            max={totalAmount}
+                            className="form-control"
+                            value={mixPayCash}
+                            onChange={(e) => handleMixCashChange(e.target.value)}
+                            style={{ height: '32px', fontSize: '0.85rem', padding: '0.3rem 0.5rem' }}
+                          />
+                        </div>
+                        <div className="form-group" style={{ margin: 0, flex: 1 }}>
+                          <label style={{ fontSize: '0.7rem', fontWeight: 600 }}>Karta summasi (Card)</label>
+                          <input
+                            type="number"
+                            min="0"
+                            max={totalAmount}
+                            className="form-control"
+                            value={mixPayCard}
+                            onChange={(e) => handleMixCardChange(e.target.value)}
+                            style={{ height: '32px', fontSize: '0.85rem', padding: '0.3rem 0.5rem' }}
+                          />
+                        </div>
+                      </div>
+                      <div style={{ fontSize: '0.72rem', color: 'var(--color-text-muted)', textAlign: 'right' }}>
+                        Jami: <strong>{formatSum(mixPayCash + mixPayCard)}</strong> / <strong>{formatSum(totalAmount)}</strong>
+                      </div>
+                    </div>
+                  )}
 
                   {/* Quick Discount Preset Chips and Custom Input */}
                   <div className="form-group" style={{ marginBottom: '0.5rem' }}>
