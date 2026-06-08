@@ -1285,7 +1285,8 @@ export default function App() {
       discountPercent: customDiscount,
       discountAmount: parseFloat(discountAmount.toFixed(2)),
       vatAmount: 0,
-      totalAmount: parseFloat(totalAmount.toFixed(2))
+      totalAmount: parseFloat(totalAmount.toFixed(2)),
+      sellerName: currentUser ? currentUser.name : "Adizova D. (POS)"
     };
 
     if (firebaseActive) {
@@ -1839,7 +1840,8 @@ export default function App() {
       discountAmount: 0,
       vatAmount: 0,
       totalAmount: parseFloat(histTotalAmount.toFixed(2)),
-      isHistorical: true
+      isHistorical: true,
+      sellerName: currentUser ? currentUser.name : "Adizova D. (POS)"
     };
 
     if (firebaseActive) {
@@ -3490,7 +3492,7 @@ service cloud.firestore {
                   </div>
                   <div className="receipt-meta-row">
                     <span>Sotuvchi:</span>
-                    <span>Adizova D. (POS)</span>
+                    <span>{activePOSInvoice.sellerName || (currentUser ? currentUser.name : "Adizova D. (POS)")}</span>
                   </div>
                   <div className="receipt-meta-row">
                     <span>Mijoz:</span>
