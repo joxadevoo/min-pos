@@ -117,6 +117,8 @@ export default function App() {
     return saved ? JSON.parse(saved) : initialTransactions;
   });
 
+  const activeTransactions = transactions.filter(t => t.status !== 'cancelled');
+
   const [cart, setCart] = useState(() => {
     const saved = localStorage.getItem('beauty_cart');
     return saved ? JSON.parse(saved) : [];
@@ -1379,6 +1381,97 @@ export default function App() {
     }, 800);
   };
 
+  // --- CANCEL/VOID TRANSACTION ACTION ---
+  const handleCancelTransaction = async (trx) => {
+    if (!currentUser || currentUser.role !== 'admin') {
+      showToast("Taqiqlangan", "Fakturani bekor qilish uchun faqat admin huquqi talab etiladi!", "error");
+      return;
+    }
+
+    const confirmCancel = window.confirm(`${trx.id} raqamli fakturani bekor qilmoqchimisiz? Tovarlar zaxiraga qaytariladi.`);
+    if (!confirmCancel) return;
+
+    const updatedProductsCopy = JSON.parse(JSON.stringify(products));
+    const modifiedProductIds = new Set();
+    let totalQtyReturned = 0;
+
+    trx.items.forEach(item => {
+      updatedProductsCopy.forEach(p => {
+        const v = p.variants.find(varItem => varItem.sku === item.sku);
+        if (v) {
+          if (!p.isService) {
+            if (v.batches && v.batches.length > 0) {
+              v.batches[0].qty += item.qty;
+            } else {
+              v.batches = [{
+                batchId: `LOT-RET-${Date.now().toString().slice(-5)}`,
+                qty: item.qty,
+                expiryDate: "2027-12-31",
+                mfgDate: "2025-06-01"
+              }];
+            }
+            totalQtyReturned += item.qty;
+            modifiedProductIds.add(p.id);
+          }
+        }
+      });
+    });
+
+    const updatedTrx = { ...trx, status: 'cancelled' };
+    const logDetails = `${trx.id} faktura bekor qilindi. ${totalQtyReturned} ta tovar zaxiraga qaytarildi.`;
+
+    if (firebaseActive) {
+      try {
+        setFirebaseLoading(true);
+        const batch = writeBatch(db);
+
+        // Update modified products in Firestore
+        modifiedProductIds.forEach(pId => {
+          const prodObj = updatedProductsCopy.find(p => p.id === pId);
+          if (prodObj) {
+            batch.set(doc(db, "products", pId), prodObj);
+          }
+        });
+
+        // Update transaction status in Firestore
+        batch.set(doc(db, "transactions", trx.id), updatedTrx);
+
+        // Add a system log to Firestore
+        const logId = `log-${Date.now()}`;
+        const newLog = {
+          id: logId,
+          time: new Date().toLocaleTimeString('en-US', { hour12: false, hour: '2-digit', minute: '2-digit' }),
+          channel: "Tizim (System)",
+          action: "Faktura Bekor Qilindi",
+          details: logDetails,
+          change: totalQtyReturned,
+          type: "restock"
+        };
+        batch.set(doc(db, "logs", logId), {
+          ...newLog,
+          timestamp: serverTimestamp()
+        });
+
+        await batch.commit();
+        showToast("Faktura Bekor Qilindi", `${trx.id} muvaffaqiyatli bekor qilindi va zaxiralar tiklandi.`, "success");
+      } catch (err) {
+        console.error("Firestore transaction cancellation failed. Falling back locally:", err);
+        showToast("Lokal Bekor Qilish", "Firestore-ga yozib bo'lmadi. Lokal ravishda bekor qilindi.", "info");
+        
+        setProducts(updatedProductsCopy);
+        setTransactions(prev => prev.map(t => t.id === trx.id ? updatedTrx : t));
+        addSystemLog("Faktura Bekor Qilindi", logDetails, totalQtyReturned, "Local Tizim", "restock");
+      } finally {
+        setFirebaseLoading(false);
+      }
+    } else {
+      setProducts(updatedProductsCopy);
+      setTransactions(prev => prev.map(t => t.id === trx.id ? updatedTrx : t));
+      addSystemLog("Faktura Bekor Qilindi", logDetails, totalQtyReturned, "Local Tizim", "restock");
+      showToast("Faktura Bekor Qilindi", `${trx.id} bekor qilindi va lokal zaxira yangilandi.`, "success");
+    }
+  };
+
   // --- ADD BATCH MODAL ACTION ---
   const submitAddBatch = async (e) => {
     e.preventDefault();
@@ -2149,12 +2242,12 @@ service cloud.firestore {
                   <div className="kpi-info">
                     <span className="kpi-title">Bugungi umumiy savdo</span>
                     <span className="kpi-value">
-                      {formatSum(transactions.reduce((sum, t) => sum + t.totalAmount, 0))}
+                      {formatSum(activeTransactions.reduce((sum, t) => sum + t.totalAmount, 0))}
                     </span>
                   </div>
                 </div>
                 <div className="kpi-trend up">
-                  <span>Fakturalar soni: {transactions.length} ta</span>
+                  <span>Fakturalar soni: {activeTransactions.length} ta</span>
                 </div>
               </div>
 
@@ -2166,12 +2259,12 @@ service cloud.firestore {
                   <div className="kpi-info">
                     <span className="kpi-title">Sotilgan tovarlar</span>
                     <span className="kpi-value">
-                      {transactions.reduce((sum, t) => sum + t.items.reduce((s, i) => s + i.qty, 0), 0)} dona
+                      {activeTransactions.reduce((sum, t) => sum + t.items.reduce((s, i) => s + i.qty, 0), 0)} dona
                     </span>
                   </div>
                 </div>
                 <div className="kpi-trend up">
-                  <span>O'rtacha chek: {formatSum(transactions.reduce((sum, t) => sum + t.totalAmount, 0) / (transactions.length || 1))}</span>
+                  <span>O'rtacha chek: {formatSum(activeTransactions.reduce((sum, t) => sum + t.totalAmount, 0) / (activeTransactions.length || 1))}</span>
                 </div>
               </div>
 
@@ -2183,7 +2276,7 @@ service cloud.firestore {
                   <div className="kpi-info">
                     <span className="kpi-title">Mijozlar faolligi</span>
                     <span className="kpi-value">
-                      {new Set(transactions.map(t => t.customerPhone)).size} ta
+                      {new Set(activeTransactions.map(t => t.customerPhone)).size} ta
                     </span>
                   </div>
                 </div>
@@ -2222,9 +2315,13 @@ service cloud.firestore {
                       ) : (
                         transactions.map(t => {
                           const totalItems = t.items.reduce((sum, item) => sum + item.qty, 0);
+                          const isCancelled = t.status === 'cancelled';
                           return (
-                            <tr key={t.id}>
-                              <td style={{ fontWeight: 600, fontFamily: 'monospace' }}>{t.id}</td>
+                            <tr key={t.id} style={isCancelled ? { opacity: 0.6, backgroundColor: 'rgba(239, 68, 68, 0.05)' } : {}}>
+                              <td style={{ fontWeight: 600, fontFamily: 'monospace' }}>
+                                {t.id}
+                                {isCancelled && <span className="badge badge-danger" style={{ marginLeft: '6px', fontSize: '0.65rem' }}>Bekor qilingan</span>}
+                              </td>
                               <td>{t.date} | {t.time}</td>
                               <td>
                                 <div>{t.customerName}</div>
@@ -2234,7 +2331,11 @@ service cloud.firestore {
                                 <span className="badge badge-secondary">{t.paymentMethod}</span>
                               </td>
                               <td>{totalItems} dona</td>
-                              <td style={{ fontWeight: 600 }}>{formatSum(t.totalAmount)}</td>
+                              <td style={{ fontWeight: 600 }}>
+                                <span style={isCancelled ? { textDecoration: 'line-through', color: 'var(--color-text-muted)' } : {}}>
+                                  {formatSum(t.totalAmount)}
+                                </span>
+                              </td>
                               <td>
                                 <button
                                   className="btn btn-secondary"
@@ -2244,6 +2345,16 @@ service cloud.firestore {
                                   <Printer size={12} />
                                   <span>Chek chiqarish</span>
                                 </button>
+                                {currentUser && currentUser.role === 'admin' && !isCancelled && (
+                                  <button
+                                    className="btn btn-danger"
+                                    style={{ padding: '0.4rem 0.8rem', fontSize: '0.8rem', marginLeft: '6px' }}
+                                    onClick={() => handleCancelTransaction(t)}
+                                  >
+                                    <X size={12} />
+                                    <span>Bekor qilish</span>
+                                  </button>
+                                )}
                               </td>
                             </tr>
                           );
