@@ -197,6 +197,7 @@ export default function App() {
   const [activeModal, setActiveModal] = useState(null);
   const [modalInputs, setModalInputs] = useState({});
   const [modalError, setModalError] = useState('');
+  const [cancellingTrx, setCancellingTrx] = useState(null);
   const [activePOSInvoice, setActivePOSInvoice] = useState(null);
 
   const handleLogin = async (e) => {
@@ -1382,20 +1383,36 @@ export default function App() {
   };
 
   // --- CANCEL/VOID TRANSACTION ACTION ---
-  const handleCancelTransaction = async (trx) => {
+  const handleCancelTransaction = (trx) => {
+    if (!currentUser || currentUser.role !== 'admin') {
+      showToast("Taqiqlangan", "Fakturani bekor qilish uchun faqat admin huquqi talab etiladi!", "error");
+      return;
+    }
+    setCancellingTrx(trx);
+    setModalInputs({ cancelReason: '' });
+    setModalError('');
+    setActiveModal('cancel-transaction');
+  };
+
+  const submitCancelTransaction = async (e) => {
+    e.preventDefault();
     if (!currentUser || currentUser.role !== 'admin') {
       showToast("Taqiqlangan", "Fakturani bekor qilish uchun faqat admin huquqi talab etiladi!", "error");
       return;
     }
 
-    const confirmCancel = window.confirm(`${trx.id} raqamli fakturani bekor qilmoqchimisiz? Tovarlar zaxiraga qaytariladi.`);
-    if (!confirmCancel) return;
+    if (!cancellingTrx) return;
+    const reason = modalInputs.cancelReason;
+    if (!reason || reason.trim() === '') {
+      setModalError("Iltimos, bekor qilish sababini kiriting.");
+      return;
+    }
 
     const updatedProductsCopy = JSON.parse(JSON.stringify(products));
     const modifiedProductIds = new Set();
     let totalQtyReturned = 0;
 
-    trx.items.forEach(item => {
+    cancellingTrx.items.forEach(item => {
       updatedProductsCopy.forEach(p => {
         const v = p.variants.find(varItem => varItem.sku === item.sku);
         if (v) {
@@ -1417,8 +1434,14 @@ export default function App() {
       });
     });
 
-    const updatedTrx = { ...trx, status: 'cancelled' };
-    const logDetails = `${trx.id} faktura bekor qilindi. ${totalQtyReturned} ta tovar zaxiraga qaytarildi.`;
+    const updatedTrx = { 
+      ...cancellingTrx, 
+      status: 'cancelled', 
+      cancelReason: reason,
+      cancelledBy: currentUser.name || currentUser.email,
+      cancelledAt: new Date().toLocaleTimeString('en-US', { hour12: false, hour: '2-digit', minute: '2-digit' })
+    };
+    const logDetails = `${cancellingTrx.id} faktura bekor qilindi. Sabab: "${reason}". ${totalQtyReturned} ta tovar zaxiraga qaytarildi.`;
 
     if (firebaseActive) {
       try {
@@ -1434,7 +1457,7 @@ export default function App() {
         });
 
         // Update transaction status in Firestore
-        batch.set(doc(db, "transactions", trx.id), updatedTrx);
+        batch.set(doc(db, "transactions", cancellingTrx.id), updatedTrx);
 
         // Add a system log to Firestore
         const logId = `log-${Date.now()}`;
@@ -1453,22 +1476,34 @@ export default function App() {
         });
 
         await batch.commit();
-        showToast("Faktura Bekor Qilindi", `${trx.id} muvaffaqiyatli bekor qilindi va zaxiralar tiklandi.`, "success");
+        showToast("Faktura Bekor Qilindi", `${cancellingTrx.id} muvaffaqiyatli bekor qilindi.`, "success");
+        setActiveModal(null);
+        setCancellingTrx(null);
+        setModalInputs({});
+        setModalError('');
       } catch (err) {
         console.error("Firestore transaction cancellation failed. Falling back locally:", err);
         showToast("Lokal Bekor Qilish", "Firestore-ga yozib bo'lmadi. Lokal ravishda bekor qilindi.", "info");
         
         setProducts(updatedProductsCopy);
-        setTransactions(prev => prev.map(t => t.id === trx.id ? updatedTrx : t));
+        setTransactions(prev => prev.map(t => t.id === cancellingTrx.id ? updatedTrx : t));
         addSystemLog("Faktura Bekor Qilindi", logDetails, totalQtyReturned, "Local Tizim", "restock");
+        setActiveModal(null);
+        setCancellingTrx(null);
+        setModalInputs({});
+        setModalError('');
       } finally {
         setFirebaseLoading(false);
       }
     } else {
       setProducts(updatedProductsCopy);
-      setTransactions(prev => prev.map(t => t.id === trx.id ? updatedTrx : t));
+      setTransactions(prev => prev.map(t => t.id === cancellingTrx.id ? updatedTrx : t));
       addSystemLog("Faktura Bekor Qilindi", logDetails, totalQtyReturned, "Local Tizim", "restock");
-      showToast("Faktura Bekor Qilindi", `${trx.id} bekor qilindi va lokal zaxira yangilandi.`, "success");
+      showToast("Faktura Bekor Qilindi", `${cancellingTrx.id} bekor qilindi va lokal zaxira yangilandi.`, "success");
+      setActiveModal(null);
+      setCancellingTrx(null);
+      setModalInputs({});
+      setModalError('');
     }
   };
 
@@ -2326,6 +2361,11 @@ service cloud.firestore {
                               <td>
                                 <div>{t.customerName}</div>
                                 <span style={{ fontSize: '0.75rem', color: 'var(--color-text-muted)' }}>{t.customerPhone}</span>
+                                {isCancelled && t.cancelReason && (
+                                  <div style={{ fontSize: '0.72rem', color: '#EF4444', marginTop: '4px', fontStyle: 'italic' }}>
+                                    Izoh: {t.cancelReason}
+                                  </div>
+                                )}
                               </td>
                               <td>
                                 <span className="badge badge-secondary">{t.paymentMethod}</span>
@@ -3144,6 +3184,81 @@ service cloud.firestore {
             <div className="modal-footer">
               <button type="button" className="btn btn-secondary" onClick={() => setActiveModal(null)}>Bekor qilish</button>
               <button type="submit" className="btn btn-primary">Zaxiraga qo'shish</button>
+            </div>
+          </form>
+        </div>
+      )}
+
+      {/* MODAL: CANCEL TRANSACTION */}
+      {activeModal === 'cancel-transaction' && cancellingTrx && (
+        <div className="modal-overlay">
+          <form className="modal-content" onSubmit={submitCancelTransaction} style={{ maxWidth: '500px' }}>
+            <div className="modal-header" style={{ borderBottom: '1px solid var(--color-border)', paddingBottom: '0.75rem' }}>
+              <h3 style={{ color: '#EF4444' }}>Faktura № {cancellingTrx.id} ni bekor qilish</h3>
+              <button type="button" className="modal-close-btn" onClick={() => { setActiveModal(null); setCancellingTrx(null); }}>
+                <X size={18} />
+              </button>
+            </div>
+
+            <div className="modal-body" style={{ display: 'flex', flexDirection: 'column', gap: '1rem' }}>
+              {modalError && (
+                <div style={{ color: 'var(--color-warning)', padding: '0.6rem', backgroundColor: 'var(--color-warning-light)', borderRadius: '4px', fontSize: '0.85rem' }}>
+                  {modalError}
+                </div>
+              )}
+
+              <div style={{ backgroundColor: 'rgba(0,0,0,0.02)', padding: '0.85rem', borderRadius: '6px', fontSize: '0.85rem' }}>
+                <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '6px' }}>
+                  <span style={{ color: 'var(--color-text-muted)' }}>Mijoz:</span>
+                  <span style={{ fontWeight: 600 }}>{cancellingTrx.customerName}</span>
+                </div>
+                <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '12px' }}>
+                  <span style={{ color: 'var(--color-text-muted)' }}>Telefon:</span>
+                  <span style={{ fontWeight: 600 }}>{cancellingTrx.customerPhone}</span>
+                </div>
+
+                <div style={{ fontWeight: 600, borderTop: '1px solid var(--color-border)', paddingTop: '8px', marginBottom: '6px' }}>
+                  Sotilgan tovarlar tarkibi:
+                </div>
+                <div style={{ maxHeight: '150px', overflowY: 'auto', paddingRight: '4px' }}>
+                  {cancellingTrx.items.map((item, index) => (
+                    <div key={`${item.sku}-${index}`} style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '4px', fontSize: '0.8rem' }}>
+                      <span>{item.name} x {item.qty}</span>
+                      <span>{formatSum(item.price * item.qty)}</span>
+                    </div>
+                  ))}
+                </div>
+
+                <div style={{ display: 'flex', justifyContent: 'space-between', fontWeight: 600, borderTop: '1px solid var(--color-border)', paddingTop: '8px', marginTop: '8px', fontSize: '0.9rem', color: 'var(--color-text)' }}>
+                  <span>Jami Qaytariladigan Summa:</span>
+                  <span>{formatSum(cancellingTrx.totalAmount)}</span>
+                </div>
+              </div>
+
+              <div className="form-group">
+                <label style={{ fontWeight: 600, display: 'block', marginBottom: '6px' }}>Bekor qilish sababi (Izoh)*</label>
+                <textarea
+                  className="form-control"
+                  required
+                  placeholder="Masalan: Xato kiritilgan, Mijoz mahsulotni qaytardi, va hokazo..."
+                  value={modalInputs.cancelReason || ''}
+                  onChange={(e) => setModalInputs(prev => ({ ...prev, cancelReason: e.target.value }))}
+                  style={{ minHeight: '90px', width: '100%', resize: 'vertical', padding: '8px' }}
+                />
+              </div>
+
+              <p style={{ color: 'var(--color-text-muted)', fontSize: '0.75rem', lineHeight: 1.4, margin: 0 }}>
+                Diqqat: Faktura bekor qilinganda undagi tovarlar avtomatik tarzda zaxiraga (omborga) qaytariladi.
+              </p>
+            </div>
+
+            <div className="modal-footer" style={{ borderTop: '1px solid var(--color-border)', paddingTop: '0.75rem', display: 'flex', justifyContent: 'flex-end', gap: '8px' }}>
+              <button type="button" className="btn btn-secondary" onClick={() => { setActiveModal(null); setCancellingTrx(null); }}>
+                Ortga (Yopish)
+              </button>
+              <button type="submit" className="btn btn-danger" style={{ backgroundColor: '#EF4444', borderColor: '#EF4444', color: '#FFF' }}>
+                Fakturani bekor qilish
+              </button>
             </div>
           </form>
         </div>
