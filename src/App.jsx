@@ -1439,7 +1439,8 @@ export default function App() {
       status: 'cancelled', 
       cancelReason: reason,
       cancelledBy: currentUser.name || currentUser.email,
-      cancelledAt: new Date().toLocaleTimeString('en-US', { hour12: false, hour: '2-digit', minute: '2-digit' })
+      cancelledAt: new Date().toLocaleTimeString('en-US', { hour12: false, hour: '2-digit', minute: '2-digit' }),
+      timestamp: cancellingTrx.timestamp || serverTimestamp()
     };
     const logDetails = `${cancellingTrx.id} faktura bekor qilindi. Sabab: "${reason}". ${totalQtyReturned} ta tovar zaxiraga qaytarildi.`;
 
