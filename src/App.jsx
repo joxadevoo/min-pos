@@ -28,6 +28,7 @@ import {
   Smartphone,
   Cloud,
   CloudOff,
+  Edit3,
   Heart,
   Smile,
   Scissors,
@@ -215,6 +216,16 @@ export default function App() {
   const [histSelectedQty, setHistSelectedQty] = useState(1);
   const [histSelectedPrice, setHistSelectedPrice] = useState(0);
 
+  // --- Edit Transaction States ---
+  const [editingTrx, setEditingTrx] = useState(null);
+  const [editDate, setEditDate] = useState("");
+  const [editTime, setEditTime] = useState("");
+  const [editCustomerName, setEditCustomerName] = useState("");
+  const [editCustomerPhone, setEditCustomerPhone] = useState("");
+  const [editPaymentMethod, setEditPaymentMethod] = useState("Naqd (Cash)");
+  const [editMixCash, setEditMixCash] = useState(0);
+  const [editMixCard, setEditMixCard] = useState(0);
+
   const handleLogin = async (e) => {
     e.preventDefault();
     setLoginError('');
@@ -338,8 +349,8 @@ export default function App() {
 
   const handleAddUser = async (e) => {
     e.preventDefault();
-    if (!currentUser || (currentUser.role !== 'admin' && currentUser.role !== 'sotuvchi')) {
-      showToast("Taqiqlangan", "Ushbu amalni bajarish uchun admin yoki sotuvchi huquqi talab etiladi!", "error");
+    if (!currentUser || currentUser.role !== 'admin') {
+      showToast("Taqiqlangan", "Ushbu amalni bajarish uchun admin huquqi talab etiladi!", "error");
       return;
     }
     const { name, email, password, role } = userForm;
@@ -396,8 +407,8 @@ export default function App() {
   };
 
   const handleDeleteUser = async (userId, userEmail) => {
-    if (!currentUser || (currentUser.role !== 'admin' && currentUser.role !== 'sotuvchi')) {
-      showToast("Taqiqlangan", "Ushbu amalni bajarish uchun admin yoki sotuvchi huquqi talab etiladi!", "error");
+    if (!currentUser || currentUser.role !== 'admin') {
+      showToast("Taqiqlangan", "Ushbu amalni bajarish uchun admin huquqi talab etiladi!", "error");
       return;
     }
     const confirmDelete = confirm(`Haqiqatan ham "${userEmail}" xodimini tizimdan o'chirmoqchisiz?`);
@@ -419,7 +430,11 @@ export default function App() {
     }
   };
 
-  // Removed cashier redirect to allow full access to all tabs
+  useEffect(() => {
+    if (currentUser && currentUser.role === 'sotuvchi' && activeTab === 'users') {
+      setActiveTab('pos');
+    }
+  }, [currentUser, activeTab]);
 
   useEffect(() => {
     if (!isProfileDropdownOpen) return;
@@ -666,6 +681,155 @@ export default function App() {
       localStorage.setItem('beauty_transactions', JSON.stringify(transactions));
     }
   }, [transactions, firebaseActive]);
+
+  // --- DELETE PRODUCT & TRANSACTION ACTIONS ---
+  const handleDeleteProduct = async (productId, productName) => {
+    if (!currentUser || currentUser.role !== 'admin') {
+      showToast("Taqiqlangan", "Ushbu amalni bajarish uchun admin huquqi talab etiladi!", "error");
+      return;
+    }
+    const confirmDelete = window.confirm(`Haqiqatan ham "${productName}" mahsulotini butunlay o'chirmoqchisiz?`);
+    if (!confirmDelete) return;
+
+    if (firebaseActive) {
+      try {
+        setFirebaseLoading(true);
+        await deleteDoc(doc(db, 'products', productId));
+        showToast("Muvaffaqiyatli", "Mahsulot o'chirildi (Firestore)!", "success");
+      } catch (err) {
+        console.error("Delete product failed:", err);
+        showToast("Xatolik", "Mahsulotni o'chirishda xatolik yuz berdi.", "error");
+      } finally {
+        setFirebaseLoading(false);
+      }
+    } else {
+      const updatedProducts = products.filter(p => p.id !== productId);
+      setProducts(updatedProducts);
+      localStorage.setItem('beauty_products', JSON.stringify(updatedProducts));
+      showToast("Muvaffaqiyatli", "Mahsulot o'chirildi (Lokal)!", "success");
+    }
+  };
+
+  const handleDeleteTransaction = async (trxId) => {
+    if (!currentUser || currentUser.role !== 'admin') {
+      showToast("Taqiqlangan", "Ushbu amalni bajarish uchun admin huquqi talab etiladi!", "error");
+      return;
+    }
+    const confirmDelete = window.confirm("Haqiqatan ham ushbu sotuv fakturasini butunlay o'chirmoqchisiz?");
+    if (!confirmDelete) return;
+
+    if (firebaseActive) {
+      try {
+        setFirebaseLoading(true);
+        await deleteDoc(doc(db, "transactions", trxId));
+        showToast("Muvaffaqiyatli", "Sotuv fakturasi o'chirildi (Firestore)!", "success");
+      } catch (err) {
+        console.error("Delete transaction failed:", err);
+        showToast("Xatolik", "Sotuv fakturasini o'chirishda xatolik yuz berdi.", "error");
+      } finally {
+        setFirebaseLoading(false);
+      }
+    } else {
+      const updated = transactions.filter(t => t.id !== trxId);
+      setTransactions(updated);
+      localStorage.setItem('beauty_transactions', JSON.stringify(updated));
+      showToast("Muvaffaqiyatli", "Sotuv fakturasi o'chirildi (Lokal)!", "success");
+    }
+  };
+
+  const handleStartEditTransaction = (trx) => {
+    setEditingTrx(trx);
+    setEditDate(trx.date || "");
+    setEditTime(trx.time || "");
+    setEditCustomerName(trx.customerName || "");
+    setEditCustomerPhone(trx.customerPhone || "");
+    
+    let method = trx.paymentMethod || "Naqd (Cash)";
+    let mixCash = 0;
+    let mixCard = 0;
+    if (method.startsWith("Aralash")) {
+      method = "Aralash (Mix)";
+      if (trx.mixPayDetails) {
+        mixCash = trx.mixPayDetails.cash || 0;
+        mixCard = trx.mixPayDetails.card || 0;
+      }
+    }
+    setEditPaymentMethod(method);
+    setEditMixCash(mixCash);
+    setEditMixCard(mixCard);
+    
+    setModalError('');
+    setActiveModal('edit-transaction');
+  };
+
+  const submitEditTransaction = async (e) => {
+    e.preventDefault();
+    if (!editingTrx) return;
+
+    const updatedTrx = {
+      ...editingTrx,
+      date: editDate,
+      time: editTime,
+      customerName: editCustomerName || "Mijoz",
+      customerPhone: editCustomerPhone || "Kiritilmagan",
+      paymentMethod: editPaymentMethod === 'Aralash (Mix)'
+        ? `Aralash (Naqd: ${formatSum(editMixCash)} / Karta: ${formatSum(editMixCard)})`
+        : editPaymentMethod,
+      mixPayDetails: editPaymentMethod === 'Aralash (Mix)' ? { cash: parseFloat(editMixCash), card: parseFloat(editMixCard) } : null,
+    };
+
+    if (firebaseActive) {
+      try {
+        setFirebaseLoading(true);
+        await setDoc(doc(db, "transactions", editingTrx.id), {
+          ...updatedTrx,
+          timestamp: editingTrx.timestamp || serverTimestamp()
+        }, { merge: true });
+        showToast("Muvaffaqiyatli", "Faktura muvaffaqiyatli tahrirlandi (Firestore).", "success");
+        setActiveModal(null);
+        setEditingTrx(null);
+      } catch (err) {
+        console.error("Firestore transaction update failed:", err);
+        showToast("Xatolik", "Firestore-ga yozib bo'lmadi. Lokal saqlandi.", "info");
+        setTransactions(prev => prev.map(t => t.id === editingTrx.id ? updatedTrx : t));
+        setActiveModal(null);
+        setEditingTrx(null);
+      } finally {
+        setFirebaseLoading(false);
+      }
+    } else {
+      const updated = transactions.map(t => t.id === editingTrx.id ? updatedTrx : t);
+      setTransactions(updated);
+      localStorage.setItem('beauty_transactions', JSON.stringify(updated));
+      showToast("Muvaffaqiyatli", "Faktura muvaffaqiyatli tahrirlandi (Lokal).", "success");
+      setActiveModal(null);
+      setEditingTrx(null);
+    }
+  };
+
+  const handleEditMixCashChange = (val) => {
+    if (!editingTrx) return;
+    const total = editingTrx.totalAmount;
+    const cash = Math.min(total, Math.max(0, parseFloat(val) || 0));
+    setEditMixCash(cash);
+    setEditMixCard(total - cash);
+  };
+
+  const handleEditMixCardChange = (val) => {
+    if (!editingTrx) return;
+    const total = editingTrx.totalAmount;
+    const card = Math.min(total, Math.max(0, parseFloat(val) || 0));
+    setEditMixCard(card);
+    setEditMixCash(total - card);
+  };
+
+  useEffect(() => {
+    if (editingTrx && editPaymentMethod === 'Aralash (Mix)') {
+      const total = editingTrx.totalAmount;
+      setEditMixCash(Math.round(total / 2));
+      setEditMixCard(total - Math.round(total / 2));
+    }
+  }, [editPaymentMethod]);
 
   useEffect(() => {
     localStorage.setItem('beauty_cart', JSON.stringify(cart));
@@ -2059,16 +2223,16 @@ export default function App() {
             <span>Fakturalar</span>
           </button>
           {currentUser && (currentUser.role === 'admin' || currentUser.role === 'sotuvchi') && (
-            <>
-              <button className={`nav-link-item ${activeTab === 'inventory' ? 'active' : ''}`} onClick={() => setActiveTab('inventory')}>
-                <Package size={16} />
-                <span>Zaxira</span>
-              </button>
-              <button className={`nav-link-item ${activeTab === 'users' ? 'active' : ''}`} onClick={() => setActiveTab('users')}>
-                <Users size={16} />
-                <span>Xodimlar</span>
-              </button>
-            </>
+            <button className={`nav-link-item ${activeTab === 'inventory' ? 'active' : ''}`} onClick={() => setActiveTab('inventory')}>
+              <Package size={16} />
+              <span>Zaxira</span>
+            </button>
+          )}
+          {currentUser && currentUser.role === 'admin' && (
+            <button className={`nav-link-item ${activeTab === 'users' ? 'active' : ''}`} onClick={() => setActiveTab('users')}>
+              <Users size={16} />
+              <span>Xodimlar</span>
+            </button>
           )}
         </nav>
 
@@ -2087,17 +2251,7 @@ export default function App() {
             )}
           </div>
 
-          {currentUser && (currentUser.role === 'admin' || currentUser.role === 'sotuvchi') && (
-            <button
-              type="button"
-              className="btn btn-secondary"
-              style={{ padding: '0.4rem 0.8rem', fontSize: '0.75rem', gap: '0.35rem', borderColor: 'rgba(255,255,255,0.1)', color: '#FFF', background: 'rgba(255,255,255,0.05)' }}
-              onClick={handleResetDatabase}
-            >
-              <Trash2 size={12} style={{ color: 'var(--color-warning)' }} />
-              <span>Wipe</span>
-            </button>
-          )}
+          {/* Wipe button removed from header */}
 
           <div className="profile-container" style={{ position: 'relative' }}>
             <button
@@ -2667,6 +2821,16 @@ service cloud.firestore {
                                   <Printer size={12} />
                                   <span>Chek chiqarish</span>
                                 </button>
+                                {currentUser && (currentUser.role === 'admin' || currentUser.role === 'sotuvchi') && (
+                                  <button
+                                    className="btn btn-secondary"
+                                    style={{ padding: '0.4rem 0.8rem', fontSize: '0.8rem', marginLeft: '6px' }}
+                                    onClick={() => handleStartEditTransaction(t)}
+                                  >
+                                    <Edit3 size={12} />
+                                    <span>Tahrirlash</span>
+                                  </button>
+                                )}
                                 {currentUser && (currentUser.role === 'admin' || currentUser.role === 'sotuvchi') && !isCancelled && (
                                   <button
                                     className="btn btn-danger"
@@ -2675,6 +2839,16 @@ service cloud.firestore {
                                   >
                                     <X size={12} />
                                     <span>Bekor qilish</span>
+                                  </button>
+                                )}
+                                {currentUser && currentUser.role === 'admin' && (
+                                  <button
+                                    className="btn btn-danger"
+                                    style={{ padding: '0.4rem 0.8rem', fontSize: '0.8rem', marginLeft: '6px', backgroundColor: '#DC2626', borderColor: '#DC2626' }}
+                                    onClick={() => handleDeleteTransaction(t.id)}
+                                  >
+                                    <Trash2 size={12} />
+                                    <span>O'chirish</span>
                                   </button>
                                 )}
                               </td>
@@ -2969,6 +3143,16 @@ service cloud.firestore {
                                 <button className="btn btn-secondary" style={{ padding: '0.4rem 0.8rem', fontSize: '0.8rem' }} onClick={() => setExpandedProduct(isExpanded ? null : p.id)}>
                                   Zaxirani ko'rish
                                 </button>
+                                {currentUser && currentUser.role === 'admin' && (
+                                  <button
+                                    className="btn btn-danger"
+                                    style={{ padding: '0.4rem 0.8rem', fontSize: '0.8rem', marginLeft: '6px' }}
+                                    onClick={() => handleDeleteProduct(p.id, p.name)}
+                                  >
+                                    <Trash2 size={12} />
+                                    <span>O'chirish</span>
+                                  </button>
+                                )}
                               </td>
                             </tr>
                             
@@ -3183,7 +3367,7 @@ service cloud.firestore {
           </>
         )}
 
-        {activeTab === 'users' && currentUser && (currentUser.role === 'admin' || currentUser.role === 'sotuvchi') && (
+        {activeTab === 'users' && currentUser && currentUser.role === 'admin' && (
           <>
             <div className="page-header" style={{ paddingBottom: '0.75rem', marginBottom: '1rem' }}>
               <div className="header-title">
@@ -3956,8 +4140,149 @@ service cloud.firestore {
         </div>
       )}
 
+      {/* MODAL: EDIT TRANSACTION */}
+      {activeModal === 'edit-transaction' && editingTrx && (
+        <div className="modal-overlay">
+          <form className="modal-content" onSubmit={submitEditTransaction} style={{ maxWidth: '650px' }}>
+            <div className="modal-header">
+              <h3>Fakturani Tahrirlash (ID: {editingTrx.id})</h3>
+              <button type="button" className="modal-close-btn" onClick={() => { setActiveModal(null); setEditingTrx(null); }}>
+                <X size={18} />
+              </button>
+            </div>
+
+            <div className="modal-body" style={{ display: 'flex', flexDirection: 'column', gap: '0.8rem', maxHeight: '75vh', overflowY: 'auto' }}>
+              {modalError && (
+                <div style={{ color: 'var(--color-warning)', padding: '0.5rem', backgroundColor: 'var(--color-warning-light)', borderRadius: '4px', fontSize: '0.85rem' }}>
+                  {modalError}
+                </div>
+              )}
+
+              {/* DATE & TIME */}
+              <div className="form-row">
+                <div className="form-group">
+                  <label style={{ fontWeight: 600 }}>Sana (Date)*</label>
+                  <input
+                    type="date"
+                    className="form-control"
+                    required
+                    value={editDate}
+                    onChange={(e) => setEditDate(e.target.value)}
+                  />
+                </div>
+                <div className="form-group">
+                  <label style={{ fontWeight: 600 }}>Vaqt (Time)*</label>
+                  <input
+                    type="time"
+                    className="form-control"
+                    required
+                    value={editTime}
+                    onChange={(e) => setEditTime(e.target.value)}
+                  />
+                </div>
+              </div>
+
+              {/* CUSTOMER */}
+              <div className="form-row">
+                <div className="form-group">
+                  <label style={{ fontWeight: 600 }}>Mijoz Ismi</label>
+                  <input
+                    type="text"
+                    className="form-control"
+                    placeholder="Masalan: Nilufar"
+                    value={editCustomerName}
+                    onChange={(e) => setEditCustomerName(e.target.value)}
+                  />
+                </div>
+                <div className="form-group">
+                  <label style={{ fontWeight: 600 }}>Mijoz Telefoni</label>
+                  <input
+                    type="text"
+                    className="form-control"
+                    placeholder="+998 90..."
+                    value={editCustomerPhone}
+                    onChange={(e) => setEditCustomerPhone(e.target.value)}
+                  />
+                </div>
+              </div>
+
+              {/* PAYMENT METHOD */}
+              <div className="form-group">
+                <label style={{ fontWeight: 600, display: 'block', marginBottom: '0.25rem' }}>To'lov Usuli (Payment Method)</label>
+                <div className="pay-methods-grid" style={{ gridTemplateColumns: 'repeat(4, 1fr)', gap: '0.4rem' }}>
+                  {[
+                    { id: 'Naqd (Cash)', title: 'Naqd (Cash)', Icon: Banknote },
+                    { id: 'Karta (Card)', title: 'Karta (Card)', Icon: CreditCard },
+                    { id: 'Click/Payme', title: 'Click/Payme', Icon: Smartphone },
+                    { id: 'Aralash (Mix)', title: 'Aralash (Mix)', Icon: Layers }
+                  ].map(method => (
+                    <button
+                      key={method.id}
+                      type="button"
+                      className={`pay-method-card ${editPaymentMethod === method.id ? 'active' : ''}`}
+                      onClick={() => setEditPaymentMethod(method.id)}
+                      style={{ padding: '0.4rem 0.15rem' }}
+                    >
+                      <method.Icon size={16} className="pay-method-icon" />
+                      <span className="pay-method-title" style={{ fontSize: '0.68rem' }}>{method.title}</span>
+                    </button>
+                  ))}
+                </div>
+              </div>
+
+              {editPaymentMethod === 'Aralash (Mix)' && (
+                <div style={{ 
+                  backgroundColor: 'rgba(0,0,0,0.02)', 
+                  padding: '0.75rem', 
+                  borderRadius: '6px', 
+                  display: 'flex', 
+                  flexDirection: 'column', 
+                  gap: '0.5rem',
+                  border: '1px dashed var(--color-border)'
+                }}>
+                  <div style={{ display: 'flex', gap: '8px' }}>
+                    <div style={{ flex: 1 }}>
+                      <label style={{ fontSize: '0.75rem', fontWeight: 600, color: 'var(--color-text-main)' }}>Naqd (Cash) Summa</label>
+                      <input
+                        type="number"
+                        step="any"
+                        className="form-control"
+                        value={editMixCash}
+                        onChange={(e) => handleEditMixCashChange(e.target.value)}
+                      />
+                    </div>
+                    <div style={{ flex: 1 }}>
+                      <label style={{ fontSize: '0.75rem', fontWeight: 600, color: 'var(--color-text-main)' }}>Karta (Card) Summa</label>
+                      <input
+                        type="number"
+                        step="any"
+                        className="form-control"
+                        value={editMixCard}
+                        onChange={(e) => handleEditMixCardChange(e.target.value)}
+                      />
+                    </div>
+                  </div>
+                  <div style={{ fontSize: '0.72rem', color: 'var(--color-text-muted)', textAlign: 'right' }}>
+                    Faktura umumiy summasi: {formatSum(editingTrx.totalAmount)}
+                  </div>
+                </div>
+              )}
+            </div>
+
+            <div className="modal-footer" style={{ borderTop: '1px solid var(--color-border)', paddingTop: '0.75rem', display: 'flex', justifyContent: 'flex-end', gap: '8px' }}>
+              <button type="button" className="btn btn-secondary" onClick={() => { setActiveModal(null); setEditingTrx(null); }}>
+                Bekor qilish
+              </button>
+              <button type="submit" className="btn btn-primary">
+                Saqlash
+              </button>
+            </div>
+          </form>
+        </div>
+      )}
+
       {/* MODAL: YANGI XODIM QO'SHISH */}
-      {isAddUserModalOpen && currentUser && (currentUser.role === 'admin' || currentUser.role === 'sotuvchi') && (
+      {isAddUserModalOpen && currentUser && currentUser.role === 'admin' && (
         <div className="modal-overlay">
           <div className="modal-content" style={{ maxWidth: '450px' }}>
             <div className="modal-header">
