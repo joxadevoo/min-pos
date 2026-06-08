@@ -1652,8 +1652,8 @@ export default function App() {
 
   const submitHistoricalTransaction = async (e) => {
     e.preventDefault();
-    if (!currentUser || currentUser.role !== 'admin') {
-      showToast("Taqiqlangan", "Tarixiy savdoni kiritish uchun faqat admin huquqi talab etiladi!", "error");
+    if (!currentUser || (currentUser.role !== 'admin' && currentUser.role !== 'sotuvchi')) {
+      showToast("Taqiqlangan", "Tarixiy savdoni kiritish uchun admin yoki sotuvchi huquqi talab etiladi!", "error");
       return;
     }
 
@@ -2535,7 +2535,7 @@ service cloud.firestore {
                 <h1>Fakturalar va Savdo Tarixi (Invoices History)</h1>
                 <p>POS terminali orqali amalga oshirilgan barcha sotuvlar ro'yxati va chek qayta chiqarish</p>
               </div>
-              {currentUser && currentUser.role === 'admin' && (
+              {currentUser && (currentUser.role === 'admin' || currentUser.role === 'sotuvchi') && (
                 <div className="header-actions">
                   <button 
                     className="btn btn-primary" 
