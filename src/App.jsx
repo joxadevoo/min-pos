@@ -71,7 +71,7 @@ import {
 } from 'firebase/firestore';
 
 // Data versiyasi — o'zgartirsa eski localStorage avtomatik tozalanadi
-const DATA_VERSION = 'v6-vidalita-tgc-admin-auth-reset';
+const DATA_VERSION = 'v7-vidalita-tgc-admin-auth-reset-prices';
 
 export default function App() {
   // --- Eski keshni versiya asosida tozalash ---

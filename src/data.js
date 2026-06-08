@@ -17,7 +17,7 @@ export const initialProducts = [
         name: "30 ML",
         sku: "VID-VCS-STD",
         colorCode: "#FFD700",
-        price: 200000,
+        price: 80000,
         batches: [
           { batchId: "LOT-VID-100", qty: 50, expiryDate: "2027-12-31", mfgDate: "2025-06-01" }
         ]
@@ -40,7 +40,7 @@ export const initialProducts = [
         name: "30 ML",
         sku: "VID-NIA-STD",
         colorCode: "#E8F4FD",
-        price: 100000,
+        price: 64000,
         batches: [
           { batchId: "LOT-VID-101", qty: 50, expiryDate: "2027-12-31", mfgDate: "2025-06-01" }
         ]
@@ -63,7 +63,7 @@ export const initialProducts = [
         name: "30 ML",
         sku: "VID-HYA-STD",
         colorCode: "#C7E8FA",
-        price: 130000,
+        price: 52000,
         batches: [
           { batchId: "LOT-VID-102", qty: 50, expiryDate: "2027-12-31", mfgDate: "2025-06-01" }
         ]
@@ -86,7 +86,7 @@ export const initialProducts = [
         name: "30 ML",
         sku: "VID-ECS-STD",
         colorCode: "#F0E6FF",
-        price: 180000,
+        price: 72000,
         batches: [
           { batchId: "LOT-VID-103", qty: 50, expiryDate: "2027-12-31", mfgDate: "2025-06-01" }
         ]
@@ -109,7 +109,7 @@ export const initialProducts = [
         name: "200 ML",
         sku: "VID-CLG-STD",
         colorCode: "#E8FAF4",
-        price: 170000,
+        price: 68000,
         batches: [
           { batchId: "LOT-VID-104", qty: 50, expiryDate: "2027-12-31", mfgDate: "2025-06-01" }
         ]
@@ -132,7 +132,7 @@ export const initialProducts = [
         name: "200 ML",
         sku: "VID-GLT-STD",
         colorCode: "#FFF0E8",
-        price: 170000,
+        price: 68000,
         batches: [
           { batchId: "LOT-VID-105", qty: 50, expiryDate: "2027-12-31", mfgDate: "2025-06-01" }
         ]
@@ -155,7 +155,7 @@ export const initialProducts = [
         name: "50 ML",
         sku: "VID-MOC-STD",
         colorCode: "#FFF9E6",
-        price: 140000,
+        price: 56000,
         batches: [
           { batchId: "LOT-VID-106", qty: 50, expiryDate: "2027-12-31", mfgDate: "2025-06-01" }
         ]
@@ -178,7 +178,7 @@ export const initialProducts = [
         name: "55 GR",
         sku: "VID-FEP-STD",
         colorCode: "#FFE4B5",
-        price: 280000,
+        price: 140000,
         batches: [
           { batchId: "LOT-VID-107", qty: 50, expiryDate: "2027-12-31", mfgDate: "2025-06-01" }
         ]
@@ -201,7 +201,7 @@ export const initialProducts = [
         name: "50 ML",
         sku: "VID-BBC-STD",
         colorCode: "#D4A574",
-        price: 250000,
+        price: 125000,
         batches: [
           { batchId: "LOT-VID-108", qty: 50, expiryDate: "2027-12-31", mfgDate: "2025-06-01" }
         ]
@@ -224,7 +224,7 @@ export const initialProducts = [
         name: "50 ML",
         sku: "VID-SUN-STD",
         colorCode: "#FFF8DC",
-        price: 190000,
+        price: 95000,
         batches: [
           { batchId: "LOT-VID-109", qty: 50, expiryDate: "2027-12-31", mfgDate: "2025-06-01" }
         ]
@@ -247,7 +247,7 @@ export const initialProducts = [
         name: "200 ML",
         sku: "VID-HCO-STD",
         colorCode: "#E6F3FF",
-        price: 120000,
+        price: 48000,
         batches: [
           { batchId: "LOT-VID-110", qty: 50, expiryDate: "2027-12-31", mfgDate: "2025-06-01" }
         ]
@@ -270,7 +270,7 @@ export const initialProducts = [
         name: "200 ML",
         sku: "VID-AHS-STD",
         colorCode: "#E8FFE8",
-        price: 140000,
+        price: 56000,
         batches: [
           { batchId: "LOT-VID-111", qty: 50, expiryDate: "2027-12-31", mfgDate: "2025-06-01" }
         ]
@@ -293,7 +293,7 @@ export const initialProducts = [
         name: "200 ML",
         sku: "VID-MCU-STD",
         colorCode: "#FFF5E6",
-        price: 125000,
+        price: 50000,
         batches: [
           { batchId: "LOT-VID-112", qty: 50, expiryDate: "2027-12-31", mfgDate: "2025-06-01" }
         ]
@@ -316,7 +316,7 @@ export const initialProducts = [
         name: "200 ML",
         sku: "VID-SOC-STD",
         colorCode: "#E8F8F5",
-        price: 150000,
+        price: 60000,
         batches: [
           { batchId: "LOT-VID-113", qty: 50, expiryDate: "2027-12-31", mfgDate: "2025-06-01" }
         ]
@@ -339,7 +339,7 @@ export const initialProducts = [
         name: "200 ML",
         sku: "VID-BAC-STD",
         colorCode: "#F0F8FF",
-        price: 140000,
+        price: 56000,
         batches: [
           { batchId: "LOT-VID-114", qty: 50, expiryDate: "2027-12-31", mfgDate: "2025-06-01" }
         ]
@@ -362,7 +362,7 @@ export const initialProducts = [
         name: "200 ML",
         sku: "VID-BPC-STD",
         colorCode: "#FFE4E1",
-        price: 150000,
+        price: 60000,
         batches: [
           { batchId: "LOT-VID-115", qty: 50, expiryDate: "2027-12-31", mfgDate: "2025-06-01" }
         ]
@@ -385,7 +385,7 @@ export const initialProducts = [
         name: "340 ML",
         sku: "VID-SGS-STD",
         colorCode: "#D6EAF8",
-        price: 115000,
+        price: 46000,
         batches: [
           { batchId: "LOT-VID-116", qty: 50, expiryDate: "2027-12-31", mfgDate: "2025-06-01" }
         ]
@@ -408,7 +408,7 @@ export const initialProducts = [
         name: "340 ML",
         sku: "VID-SGF-STD",
         colorCode: "#FDE8D8",
-        price: 115000,
+        price: 46000,
         batches: [
           { batchId: "LOT-VID-117", qty: 50, expiryDate: "2027-12-31", mfgDate: "2025-06-01" }
         ]
@@ -431,7 +431,7 @@ export const initialProducts = [
         name: "340 ML",
         sku: "VID-SGO-STD",
         colorCode: "#E8F5E9",
-        price: 115000,
+        price: 46000,
         batches: [
           { batchId: "LOT-VID-118", qty: 50, expiryDate: "2027-12-31", mfgDate: "2025-06-01" }
         ]
