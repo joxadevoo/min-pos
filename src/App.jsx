@@ -204,7 +204,7 @@ export default function App() {
   const [activePOSInvoice, setActivePOSInvoice] = useState(null);
 
   // --- Historical Transactions Manual Entry States ---
-  const [histDate, setHistDate] = useState("2026-06-04");
+  const [histDate, setHistDate] = useState(() => new Date().toLocaleDateString('en-CA', { timeZone: 'Asia/Tashkent' }));
   const [histTime, setHistTime] = useState("12:00");
   const [histCustomerName, setHistCustomerName] = useState("");
   const [histCustomerPhone, setHistCustomerPhone] = useState("");
@@ -504,8 +504,8 @@ export default function App() {
 
 
 
-  // --- Current Simulated System Date ---
-  const todayDateStr = "2026-06-04";
+  // --- Current System Date (Uzbekistan Time Zone) ---
+  const todayDateStr = new Date().toLocaleDateString('en-CA', { timeZone: 'Asia/Tashkent' });
 
   // --- FIRESTORE REAL-TIME SYNCHRONIZATION AND SEEDING ---
   useEffect(() => {
@@ -906,7 +906,7 @@ export default function App() {
 
   // --- Helper Log Writer ---
   const addSystemLog = async (action, details, change, channel = "System", type = "info") => {
-    const time = new Date().toLocaleTimeString('en-US', { hour12: false, hour: '2-digit', minute: '2-digit' });
+    const time = new Date().toLocaleTimeString('en-US', { timeZone: 'Asia/Tashkent', hour12: false, hour: '2-digit', minute: '2-digit' });
     const newLog = { id: `log-${Date.now()}`, time, channel, action, details, change, type };
     
     if (firebaseActive) {
@@ -1273,7 +1273,7 @@ export default function App() {
     const newTrx = {
       id: newTrxId,
       date: todayDateStr,
-      time: new Date().toLocaleTimeString('en-US', { hour12: false, hour: '2-digit', minute: '2-digit' }),
+      time: new Date().toLocaleTimeString('en-US', { timeZone: 'Asia/Tashkent', hour12: false, hour: '2-digit', minute: '2-digit' }),
       customerName: selectedCustomer.name || "Anonim Mijoz",
       customerPhone: selectedCustomer.phone || "Kiritilmagan",
       paymentMethod: paymentMethod === 'Aralash (Mix)' 
@@ -1441,7 +1441,7 @@ export default function App() {
         const logId = `log-${Date.now()}`;
         batch.set(doc(db, "logs", logId), {
           id: logId,
-          time: new Date().toLocaleTimeString('en-US', { hour12: false, hour: '2-digit', minute: '2-digit' }),
+          time: new Date().toLocaleTimeString('en-US', { timeZone: 'Asia/Tashkent', hour12: false, hour: '2-digit', minute: '2-digit' }),
           channel: "Tizim (Factory)",
           action: "Ishlab Chiqarish",
           details: logDetails,
@@ -1500,7 +1500,7 @@ export default function App() {
       const bundleTrx = {
         id: newTrxId,
         date: todayDateStr,
-        time: new Date().toLocaleTimeString('en-US', { hour12: false, hour: '2-digit', minute: '2-digit' }),
+        time: new Date().toLocaleTimeString('en-US', { timeZone: 'Asia/Tashkent', hour12: false, hour: '2-digit', minute: '2-digit' }),
         customerName: "Gift Bundle Customer",
         customerPhone: "To'plam savdosi",
         paymentMethod: "Naqd (Cash)",
@@ -1649,7 +1649,7 @@ export default function App() {
       status: 'cancelled', 
       cancelReason: reason,
       cancelledBy: currentUser.name || currentUser.email,
-      cancelledAt: new Date().toLocaleTimeString('en-US', { hour12: false, hour: '2-digit', minute: '2-digit' }),
+      cancelledAt: new Date().toLocaleTimeString('en-US', { timeZone: 'Asia/Tashkent', hour12: false, hour: '2-digit', minute: '2-digit' }),
       timestamp: cancellingTrx.timestamp || serverTimestamp()
     };
     const logDetails = `${cancellingTrx.id} faktura bekor qilindi. Sabab: "${reason}". ${totalQtyReturned} ta tovar zaxiraga qaytarildi.`;
@@ -1674,7 +1674,7 @@ export default function App() {
         const logId = `log-${Date.now()}`;
         const newLog = {
           id: logId,
-          time: new Date().toLocaleTimeString('en-US', { hour12: false, hour: '2-digit', minute: '2-digit' }),
+          time: new Date().toLocaleTimeString('en-US', { timeZone: 'Asia/Tashkent', hour12: false, hour: '2-digit', minute: '2-digit' }),
           channel: "Tizim (System)",
           action: "Faktura Bekor Qilindi",
           details: logDetails,
@@ -1798,7 +1798,7 @@ export default function App() {
   };
 
   const resetHistStates = () => {
-    setHistDate("2026-06-04");
+    setHistDate(new Date().toLocaleDateString('en-CA', { timeZone: 'Asia/Tashkent' }));
     setHistTime("12:00");
     setHistCustomerName("");
     setHistCustomerPhone("");
