@@ -1969,87 +1969,9 @@ export default function App() {
         }
       });
 
-      // 2. Calculate KPI summary data
-      const repTotalSales = repTransactions.reduce((sum, t) => sum + (t.totalAmount || 0), 0);
-      const repTotalDiscount = repTransactions.reduce((sum, t) => sum + (t.discountAmount || 0), 0);
-      const repTotalSubtotal = repTransactions.reduce((sum, t) => sum + (t.subtotal || 0), 0);
-      const repCount = repTransactions.length;
-      const repAverageBill = repCount > 0 ? repTotalSales / repCount : 0;
-      const repTotalItems = repTransactions.reduce((sum, t) => sum + (t.items?.reduce((s, i) => s + (i.qty || 0), 0) || 0), 0);
-
-      // 3. Calculate Cash and Card sums
-      let repCash = 0;
-      let repCard = 0;
-      repTransactions.forEach(t => {
-        if (t.paymentMethod?.includes('Naqd') || t.paymentMethod?.includes('Cash')) {
-          repCash += t.totalAmount || 0;
-        } else if (t.paymentMethod?.includes('Karta') || t.paymentMethod?.includes('Card')) {
-          repCard += t.totalAmount || 0;
-        } else if (t.mixPayDetails) {
-          repCash += t.mixPayDetails.cash || 0;
-          repCard += t.mixPayDetails.card || 0;
-        } else {
-          repCash += t.totalAmount || 0;
-        }
-      });
-
-      // 4. Calculate Top Selling Products
-      const repProductMap = {};
-      repTransactions.forEach(t => {
-        t.items?.forEach(item => {
-          const sku = item.sku;
-          if (!sku) return;
-          const qty = item.qty || 0;
-          
-          let price = item.price;
-          let name = item.name;
-          if (!price || price === 0) {
-            for (const p of products) {
-              const variant = p.variants?.find(v => v.sku === sku);
-              if (variant) {
-                price = variant.price;
-                if (!name) name = p.name;
-                break;
-              }
-            }
-          }
-          
-          const total = (price || 0) * qty;
-
-          if (!repProductMap[sku]) {
-            repProductMap[sku] = {
-              sku,
-              name: name || item.name || sku,
-              qty: 0,
-              revenue: 0
-            };
-          }
-          repProductMap[sku].qty += qty;
-          repProductMap[sku].revenue += total;
-        });
-      });
-      const repTopProducts = Object.values(repProductMap).sort((a, b) => b.qty - a.qty);
-
-      // 5. Calculate Seller Share
-      const repSellerMap = {};
-      repTransactions.forEach(t => {
-        const seller = t.sellerName || "Noma'lum";
-        if (!repSellerMap[seller]) {
-          repSellerMap[seller] = {
-            name: seller,
-            total: 0,
-            count: 0
-          };
-        }
-        repSellerMap[seller].total += t.totalAmount || 0;
-        repSellerMap[seller].count += 1;
-      });
-      const repSellers = Object.values(repSellerMap).sort((a, b) => b.total - a.total);
-
-      // 6. Build the Excel HTML representation
       const title = reportType === 'daily'
-        ? `Kunlik Sotuvlar Hisoboti - ${reportDate}`
-        : `Sotuvlar Hisoboti - ${reportStartDate} dan ${reportEndDate} gacha`;
+        ? `Sotilgan Mahsulotlar Hisoboti - ${reportDate}`
+        : `Sotilgan Mahsulotlar Hisoboti - ${reportStartDate} dan ${reportEndDate} gacha`;
 
       let html = `<html xmlns:o="urn:schemas-microsoft-com:office:office" xmlns:x="urn:schemas-microsoft-com:office:excel" xmlns="http://www.w3.org/TR/REC-html40">
 <head>
@@ -2059,7 +1981,7 @@ export default function App() {
     <x:ExcelWorkbook>
       <x:ExcelWorksheets>
         <x:ExcelWorksheet>
-          <x:Name>Sotuvlar Hisoboti</x:Name>
+          <x:Name>Sotilgan Mahsulotlar</x:Name>
           <x:WorksheetOptions>
             <x:DisplayGridlines/>
           </x:WorksheetOptions>
@@ -2070,163 +1992,105 @@ export default function App() {
   <![endif]-->
   <style>
     body { font-family: Calibri, sans-serif; }
-    table { border-collapse: collapse; width: 100%; margin-bottom: 20px; }
-    th { border: 1px solid #d4cbc4; padding: 10px; background-color: #ede8e3; font-weight: bold; text-align: left; font-size: 11pt; }
+    table { border-collapse: collapse; width: 100%; }
+    th { border: 1px solid #d4cbc4; padding: 10px; background-color: #1c1a19; color: #ffffff; font-weight: bold; text-align: left; font-size: 11pt; }
     td { border: 1px solid #d4cbc4; padding: 8px; font-size: 10pt; vertical-align: middle; }
-    .title-row { font-size: 16pt; font-weight: bold; text-align: center; height: 40px; }
-    .subtitle-row { font-size: 11pt; color: #6e6461; text-align: center; height: 25px; }
-    .section-header { font-size: 12pt; font-weight: bold; background-color: #1c1a19; color: #ffffff; padding: 8px; }
-    .kpi-title { font-size: 9pt; color: #6e6461; font-weight: bold; }
-    .kpi-value { font-size: 13pt; font-weight: bold; color: #1c1a19; }
-    .kpi-desc { font-size: 8pt; color: #8a7f7c; }
+    .title-row { font-size: 14pt; font-weight: bold; text-align: center; height: 35px; background-color: #f7f4f1; }
+    .subtitle-row { font-size: 10pt; color: #6e6461; text-align: center; height: 22px; background-color: #f7f4f1; }
     .number-cell { text-align: right; }
     .text-center { text-align: center; }
-    .badge { font-weight: bold; color: #4a6882; }
+    .total-row { font-weight: bold; background-color: #ede8e3; }
   </style>
 </head>
 <body>
   <table>
     <!-- Main Title -->
     <tr>
-      <td colspan="6" class="title-row">${title}</td>
+      <td colspan="10" class="title-row">${title}</td>
     </tr>
     <tr>
-      <td colspan="6" class="subtitle-row">Chop etilgan sana: ${new Date().toLocaleString('uz-UZ', { timeZone: 'Asia/Tashkent' })}</td>
+      <td colspan="10" class="subtitle-row">Yuklab olingan sana: ${new Date().toLocaleString('uz-UZ', { timeZone: 'Asia/Tashkent' })}</td>
     </tr>
-    <tr><td colspan="6" style="border: none; height: 15px;"></td></tr>
+    <tr><td colspan="10" style="border: none; height: 10px;"></td></tr>
 
-    <!-- KPI Section Header -->
     <tr>
-      <td colspan="6" class="section-header">ASOSIY KO'RSATKICHLAR (KPI)</td>
-    </tr>
-    <!-- KPI Row 1 -->
-    <tr>
-      <td colspan="2" style="background-color: #f7f4f1;">
-        <span class="kpi-title">Umumiy Tushum (Net)</span><br/>
-        <span class="kpi-value">${formatSum(repTotalSales)}</span><br/>
-        <span class="kpi-desc">Chegirma: -${formatSum(repTotalDiscount)}</span>
-      </td>
-      <td colspan="2" style="background-color: #f7f4f1;">
-        <span class="kpi-title">Fakturalar Soni</span><br/>
-        <span class="kpi-value">${repCount} ta</span><br/>
-        <span class="kpi-desc">O'rtacha chek: ${formatSum(repAverageBill)}</span>
-      </td>
-      <td colspan="2" style="background-color: #f7f4f1;">
-        <span class="kpi-title">Sotilgan Hajm</span><br/>
-        <span class="kpi-value">${repTotalItems} dona</span><br/>
-        <span class="kpi-desc">Barcha sotuvlar bo'yicha</span>
-      </td>
-    </tr>
-    <!-- KPI Row 2 -->
-    <tr>
-      <td colspan="3" style="background-color: #f7f4f1;">
-        <span class="kpi-title">Umumiy Qiymat (Gross Subtotal)</span><br/>
-        <span class="kpi-value">${formatSum(repTotalSubtotal)}</span><br/>
-        <span class="kpi-desc">Chegirmasiz jami</span>
-      </td>
-      <td colspan="3" style="background-color: #f7f4f1;">
-        <span class="kpi-title">Chegirmalar Jami</span><br/>
-        <span class="kpi-value">${formatSum(repTotalDiscount)}</span><br/>
-        <span class="kpi-desc">Mijozlarga berilgan chegirma</span>
-      </td>
-    </tr>
-    <tr><td colspan="6" style="border: none; height: 15px;"></td></tr>
-
-    <!-- Payment Breakdown Header -->
-    <tr>
-      <td colspan="6" class="section-header">TO'LOV USULLARI TAHLILI</td>
-    </tr>
-    <tr>
-      <th colspan="3">To'lov Usuli</th>
-      <th colspan="3" class="number-cell">Jami Summa va Ulushi</th>
-    </tr>
-    <tr>
-      <td colspan="3">Naqd pul (Cash)</td>
-      <td colspan="3" class="number-cell">${formatSum(repCash)} (${repTotalSales > 0 ? Math.round((repCash / repTotalSales) * 100) : 0}%)</td>
-    </tr>
-    <tr>
-      <td colspan="3">Plastik karta (Card)</td>
-      <td colspan="3" class="number-cell">${formatSum(repCard)} (${repTotalSales > 0 ? Math.round((repCard / repTotalSales) * 100) : 0}%)</td>
-    </tr>
-    <tr><td colspan="6" style="border: none; height: 15px;"></td></tr>
-
-    <!-- Seller breakdown -->
-    <tr>
-      <td colspan="6" class="section-header">SOTUVCHILAR ULUSHI</td>
-    </tr>
-    <tr>
-      <th colspan="2">Sotuvchi ismi</th>
-      <th colspan="2" class="text-center">Fakturalar Soni</th>
-      <th colspan="2" class="number-cell">Jami Sotuv Summasi</th>
-    </tr>`;
-
-      if (repSellers.length === 0) {
-        html += `<tr><td colspan="6" class="text-center">Sotuvchilar ma'lumotlari mavjud emas</td></tr>`;
-      } else {
-        repSellers.forEach(s => {
-          html += `<tr>
-            <td colspan="2">${s.name}</td>
-            <td colspan="2" class="text-center">${s.count} ta</td>
-            <td colspan="2" class="number-cell">${formatSum(s.total)}</td>
-          </tr>`;
-        });
-      }
-
-      html += `<tr><td colspan="6" style="border: none; height: 15px;"></td></tr>
-
-    <!-- Top Selling Products -->
-    <tr>
-      <td colspan="6" class="section-header">ENG KO'P SOTILGAN MAHSULOTLAR (TOP 10)</td>
-    </tr>
-    <tr>
-      <th colspan="2">Mahsulot Nomi</th>
-      <th colspan="2">SKU (Kod)</th>
-      <th class="number-cell">Sotilgan Soni</th>
-      <th class="number-cell">Jami Tushum</th>
-    </tr>`;
-
-      if (repTopProducts.length === 0) {
-        html += `<tr><td colspan="6" class="text-center">Mahsulot savdolari bo'yicha ma'lumotlar yo'q</td></tr>`;
-      } else {
-        repTopProducts.slice(0, 10).forEach(p => {
-          html += `<tr>
-            <td colspan="2" style="font-weight: 500;">${p.name}</td>
-            <td colspan="2" style="color: #6e6461;">${p.sku}</td>
-            <td class="number-cell">${p.qty} dona</td>
-            <td class="number-cell" style="font-weight: bold; color: #2e7d32;">${formatSum(p.revenue)}</td>
-          </tr>`;
-        });
-      }
-
-      html += `<tr><td colspan="6" style="border: none; height: 15px;"></td></tr>
-
-    <!-- Transactions list -->
-    <tr>
-      <td colspan="6" class="section-header">FAKTURALAR RO'YXATI</td>
-    </tr>
-    <tr>
-      <th>Faktura ID</th>
+      <th>Mahsulot Nomi</th>
+      <th>Shtrix Kod (SKU)</th>
+      <th class="number-cell">Narxi (Uzs)</th>
+      <th class="number-cell">Soni</th>
+      <th class="number-cell">Jami Summa (Uzs)</th>
+      <th class="text-center">Chegirma %</th>
+      <th class="number-cell">Chegirma Summasi (Uzs)</th>
+      <th class="number-cell">To'lov Summasi (Uzs)</th>
       <th>Sana & Vaqt</th>
-      <th colspan="2">Mijoz</th>
-      <th>To'lov Usuli</th>
-      <th class="number-cell">Summa</th>
+      <th>To'lov Turi</th>
     </tr>`;
+
+      let totalQty = 0;
+      let totalGross = 0;
+      let totalDiscount = 0;
+      let totalNet = 0;
 
       if (repTransactions.length === 0) {
-        html += `<tr><td colspan="6" class="text-center">Hech qanday sotuv topilmadi</td></tr>`;
+        html += `<tr><td colspan="10" class="text-center">Ushbu muddatda hech qanday sotuv topilmadi</td></tr>`;
       } else {
         repTransactions.forEach(t => {
-          html += `<tr>
-            <td style="font-weight: bold;">${t.id}</td>
-            <td>${t.date} ${t.time}</td>
-            <td colspan="2">
-              <strong>${t.customerName}</strong><br/>
-              <span style="font-size: 8.5pt; color: #6e6461;">${t.customerPhone}</span>
-            </td>
-            <td><span class="badge">${t.paymentMethod}</span></td>
-            <td class="number-cell" style="font-weight: bold;">${formatSum(t.totalAmount)}</td>
-          </tr>`;
+          t.items?.forEach(item => {
+            let price = item.price;
+            let name = item.name;
+            const sku = item.sku || '';
+            
+            // Resolve price/name if missing
+            if (!price || price === 0) {
+              for (const p of products) {
+                const variant = p.variants?.find(v => v.sku === sku);
+                if (variant) {
+                  price = variant.price;
+                  if (!name) name = p.name;
+                  break;
+                }
+              }
+            }
+
+            const qty = item.qty || 0;
+            const itemPrice = price || 0;
+            const grossSum = itemPrice * qty;
+            const discPercent = t.discountPercent || 0;
+            const discSum = grossSum * (discPercent / 100);
+            const netSum = grossSum - discSum;
+
+            totalQty += qty;
+            totalGross += grossSum;
+            totalDiscount += discSum;
+            totalNet += netSum;
+
+            html += `<tr>
+              <td style="font-weight: 500;">${name || item.name || sku}</td>
+              <td style="color: #6e6461;">${sku}</td>
+              <td class="number-cell">${formatSum(itemPrice)}</td>
+              <td class="number-cell">${qty} dona</td>
+              <td class="number-cell">${formatSum(grossSum)}</td>
+              <td class="text-center">${discPercent}%</td>
+              <td class="number-cell">${formatSum(discSum)}</td>
+              <td class="number-cell" style="font-weight: bold; color: #2e7d32;">${formatSum(netSum)}</td>
+              <td>${t.date} ${t.time || ''}</td>
+              <td>${t.paymentMethod || "Naqd"}</td>
+            </tr>`;
+          });
         });
+      }
+
+      // Add a summary total row if there are transactions
+      if (repTransactions.length > 0) {
+        html += `<tr class="total-row">
+          <td colspan="3">JAMI</td>
+          <td class="number-cell">${totalQty} dona</td>
+          <td class="number-cell">${formatSum(totalGross)}</td>
+          <td class="text-center">-</td>
+          <td class="number-cell">${formatSum(totalDiscount)}</td>
+          <td class="number-cell" style="color: #2e7d32;">${formatSum(totalNet)}</td>
+          <td colspan="2"></td>
+        </tr>`;
       }
 
       html += `
@@ -2238,7 +2102,7 @@ export default function App() {
       const url = URL.createObjectURL(blob);
       const link = document.createElement('a');
       link.href = url;
-      link.download = `Sotuvlar_Hisoboti_${reportDate || 'sana_oraligi'}.xls`;
+      link.download = `Sotilgan_Mahsulotlar_Hisoboti_${reportDate || 'sana_oraligi'}.xls`;
       document.body.appendChild(link);
       link.click();
       document.body.removeChild(link);
