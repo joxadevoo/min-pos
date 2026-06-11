@@ -19,6 +19,7 @@ import {
   X,
   Printer,
   FileText,
+  Download,
   User,
   Users,
   LogOut,
@@ -1910,28 +1911,41 @@ export default function App() {
     printWindow.document.write('<html><head><title>Sotuvlar Hisoboti</title>');
     printWindow.document.write('<style>');
     printWindow.document.write(`
-      body { font-family: sans-serif; padding: 25px; color: #1C1A19; background: #fff; }
-      h1 { text-align: center; margin-bottom: 5px; font-size: 1.8rem; }
-      .subtitle { text-align: center; color: #6E6461; font-size: 0.95rem; margin-bottom: 30px; }
-      .kpi-grid { display: grid; grid-template-columns: repeat(4, 1fr); gap: 15px; margin-bottom: 30px; }
-      .kpi-card { border: 1px solid #D4CBC4; padding: 15px; border-radius: 10px; background: #F7F4F1; }
-      .kpi-title { font-size: 0.8rem; color: #6E6461; font-weight: bold; text-transform: uppercase; }
-      .kpi-value { font-size: 1.3rem; font-weight: bold; margin-top: 5px; color: #1C1A19; }
-      .kpi-trend { font-size: 0.75rem; color: #6E6461; margin-top: 5px; }
-      .dashboard-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 20px; margin-bottom: 30px; }
-      .panel { border: 1px solid #D4CBC4; border-radius: 10px; padding: 15px; background: #fff; }
-      .panel-header { border-bottom: 1px solid #EAE5E0; padding-bottom: 10px; margin-bottom: 15px; }
-      .panel-title h3 { margin: 0; font-size: 1.1rem; }
-      .panel-title p { margin: 3px 0 0 0; font-size: 0.8rem; color: #6E6461; }
-      table { width: 100%; border-collapse: collapse; margin-bottom: 10px; font-size: 0.85rem; }
-      th, td { border: 1px solid #D4CBC4; padding: 8px; text-align: left; }
-      th { background-color: #EDE8E3; font-weight: 600; }
+      * { -webkit-print-color-adjust: exact !important; print-color-adjust: exact !important; }
+      body { font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif; padding: 20px; color: #1C1A19; background: #fff; line-height: 1.4; }
+      h1 { text-align: center; margin-bottom: 5px; font-size: 1.6rem; color: #1C1A19; font-weight: bold; }
+      .subtitle { text-align: center; color: #6E6461; font-size: 0.85rem; margin-bottom: 25px; }
+      
+      /* KPI Grid */
+      .kpi-grid { display: grid; grid-template-columns: repeat(4, 1fr); gap: 12px; margin-bottom: 25px; }
+      .kpi-card { border: 1px solid #D4CBC4; padding: 12px; border-radius: 8px; background: #F7F4F1 !important; display: flex; flex-direction: column; justify-content: space-between; }
+      .kpi-icon { display: none !important; }
+      .kpi-title { font-size: 0.7rem; color: #6E6461; font-weight: bold; text-transform: uppercase; letter-spacing: 0.5px; }
+      .kpi-value { font-size: 1.1rem; font-weight: bold; margin-top: 4px; color: #1C1A19; }
+      .kpi-trend { font-size: 0.7rem; color: #6E6461; margin-top: 4px; }
+      
+      /* Dashboard Grid */
+      .dashboard-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 15px; margin-bottom: 25px; page-break-inside: avoid; }
+      .panel { border: 1px solid #D4CBC4; border-radius: 8px; padding: 12px; background: #fff; }
+      .panel-header { border-bottom: 1px solid #EAE5E0; padding-bottom: 8px; margin-bottom: 12px; display: flex; justify-content: space-between; align-items: center; }
+      .panel-title h3 { margin: 0; font-size: 0.95rem; font-weight: bold; }
+      .panel-title p { margin: 2px 0 0 0; font-size: 0.75rem; color: #6E6461; }
+      
+      /* Tables */
+      table { width: 100%; border-collapse: collapse; margin-bottom: 10px; font-size: 0.8rem; page-break-inside: auto; }
+      tr { page-break-inside: avoid; page-break-after: auto; }
+      th, td { border: 1px solid #D4CBC4; padding: 6px 8px; text-align: left; }
+      th { background-color: #EDE8E3 !important; font-weight: 600; font-size: 0.8rem; color: #1C1A19; }
+      tbody tr:nth-child(even) { background-color: #FAF8F6 !important; }
+      
       .text-right { text-align: right; }
       .text-center { text-align: center; }
-      .badge { padding: 3px 6px; border-radius: 4px; font-size: 0.75rem; font-weight: bold; display: inline-block; }
-      .badge-info { background: #E8F0F7; color: #4A6882; }
+      .badge { padding: 2px 4px; border-radius: 4px; font-size: 0.7rem; font-weight: bold; display: inline-block; background: #E8F0F7 !important; color: #4A6882 !important; border: 1px solid #D4CBC4; }
+      
       .no-print { display: none !important; }
-      .printable-report-header { display: block !important; text-align: center; margin-bottom: 25px; }
+      .printable-report-header { display: block !important; text-align: center; margin-bottom: 20px; }
+      
+      @page { size: A4; margin: 15mm; }
     `);
     printWindow.document.write('</style></head><body>');
     printWindow.document.write(printContent);
@@ -1942,6 +1956,211 @@ export default function App() {
       printWindow.print();
       printWindow.close();
     }, 350);
+  };
+
+  const handleDownloadExcel = () => {
+    try {
+      const title = reportType === 'daily'
+        ? `Kunlik Sotuvlar Hisoboti - ${reportDate}`
+        : `Sotuvlar Hisoboti - ${reportStartDate} dan ${reportEndDate} gacha`;
+
+      let html = `<html xmlns:o="urn:schemas-microsoft-com:office:office" xmlns:x="urn:schemas-microsoft-com:office:excel" xmlns="http://www.w3.org/TR/REC-html40">
+<head>
+  <meta charset="utf-8"/>
+  <!--[if gte mso 9]>
+  <xml>
+    <x:ExcelWorkbook>
+      <x:ExcelWorksheets>
+        <x:ExcelWorksheet>
+          <x:Name>Sotuvlar Hisoboti</x:Name>
+          <x:WorksheetOptions>
+            <x:DisplayGridlines/>
+          </x:WorksheetOptions>
+        </x:ExcelWorksheet>
+      </x:ExcelWorksheets>
+    </x:ExcelWorkbook>
+  </xml>
+  <![endif]-->
+  <style>
+    body { font-family: Calibri, sans-serif; }
+    table { border-collapse: collapse; width: 100%; margin-bottom: 20px; }
+    th { border: 1px solid #d4cbc4; padding: 10px; background-color: #ede8e3; font-weight: bold; text-align: left; font-size: 11pt; }
+    td { border: 1px solid #d4cbc4; padding: 8px; font-size: 10pt; vertical-align: middle; }
+    .title-row { font-size: 16pt; font-weight: bold; text-align: center; height: 40px; }
+    .subtitle-row { font-size: 11pt; color: #6e6461; text-align: center; height: 25px; }
+    .section-header { font-size: 12pt; font-weight: bold; background-color: #1c1a19; color: #ffffff; padding: 8px; }
+    .kpi-title { font-size: 9pt; color: #6e6461; font-weight: bold; }
+    .kpi-value { font-size: 13pt; font-weight: bold; color: #1c1a19; }
+    .kpi-desc { font-size: 8pt; color: #8a7f7c; }
+    .number-cell { text-align: right; }
+    .text-center { text-align: center; }
+    .badge { font-weight: bold; color: #4a6882; }
+  </style>
+</head>
+<body>
+  <table>
+    <!-- Main Title -->
+    <tr>
+      <td colspan="6" class="title-row">${title}</td>
+    </tr>
+    <tr>
+      <td colspan="6" class="subtitle-row">Chop etilgan sana: ${new Date().toLocaleString('uz-UZ', { timeZone: 'Asia/Tashkent' })}</td>
+    </tr>
+    <tr><td colspan="6" style="border: none; height: 15px;"></td></tr>
+
+    <!-- KPI Section Header -->
+    <tr>
+      <td colspan="6" class="section-header">ASOSIY KO'RSATKICHLAR (KPI)</td>
+    </tr>
+    <!-- KPI Row 1 -->
+    <tr>
+      <td colspan="2" style="background-color: #f7f4f1;">
+        <span class="kpi-title">Umumiy Tushum (Net)</span><br/>
+        <span class="kpi-value">${formatSum(repTotalSales)}</span><br/>
+        <span class="kpi-desc">Chegirma: -${formatSum(repTotalDiscount)}</span>
+      </td>
+      <td colspan="2" style="background-color: #f7f4f1;">
+        <span class="kpi-title">Fakturalar Soni</span><br/>
+        <span class="kpi-value">${repCount} ta</span><br/>
+        <span class="kpi-desc">O'rtacha chek: ${formatSum(repAverageBill)}</span>
+      </td>
+      <td colspan="2" style="background-color: #f7f4f1;">
+        <span class="kpi-title">Sotilgan Hajm</span><br/>
+        <span class="kpi-value">${repTotalItems} dona</span><br/>
+        <span class="kpi-desc">Barcha sotuvlar bo'yicha</span>
+      </td>
+    </tr>
+    <!-- KPI Row 2 -->
+    <tr>
+      <td colspan="3" style="background-color: #f7f4f1;">
+        <span class="kpi-title">Umumiy Qiymat (Gross Subtotal)</span><br/>
+        <span class="kpi-value">${formatSum(repTotalSubtotal)}</span><br/>
+        <span class="kpi-desc">Chegirmasiz jami</span>
+      </td>
+      <td colspan="3" style="background-color: #f7f4f1;">
+        <span class="kpi-title">Chegirmalar Jami</span><br/>
+        <span class="kpi-value">${formatSum(repTotalDiscount)}</span><br/>
+        <span class="kpi-desc">Mijozlarga berilgan chegirma</span>
+      </td>
+    </tr>
+    <tr><td colspan="6" style="border: none; height: 15px;"></td></tr>
+
+    <!-- Payment Breakdown Header -->
+    <tr>
+      <td colspan="6" class="section-header">TO'LOV USULLARI TAHLILI</td>
+    </tr>
+    <tr>
+      <th colspan="3">To'lov Usuli</th>
+      <th colspan="3" class="number-cell">Jami Summa va Ulushi</th>
+    </tr>
+    <tr>
+      <td colspan="3">Naqd pul (Cash)</td>
+      <td colspan="3" class="number-cell">${formatSum(repCash)} (${repTotalSales > 0 ? Math.round((repCash / repTotalSales) * 100) : 0}%)</td>
+    </tr>
+    <tr>
+      <td colspan="3">Plastik karta (Card)</td>
+      <td colspan="3" class="number-cell">${formatSum(repCard)} (${repTotalSales > 0 ? Math.round((repCard / repTotalSales) * 100) : 0}%)</td>
+    </tr>
+    <tr><td colspan="6" style="border: none; height: 15px;"></td></tr>
+
+    <!-- Seller breakdown -->
+    <tr>
+      <td colspan="6" class="section-header">SOTUVCHILAR ULUSHI</td>
+    </tr>
+    <tr>
+      <th colspan="2">Sotuvchi ismi</th>
+      <th colspan="2" class="text-center">Fakturalar Soni</th>
+      <th colspan="2" class="number-cell">Jami Sotuv Summasi</th>
+    </tr>`;
+
+      if (repSellers.length === 0) {
+        html += `<tr><td colspan="6" class="text-center">Sotuvchilar ma'lumotlari mavjud emas</td></tr>`;
+      } else {
+        repSellers.forEach(s => {
+          html += `<tr>
+            <td colspan="2">${s.name}</td>
+            <td colspan="2" class="text-center">${s.count} ta</td>
+            <td colspan="2" class="number-cell">${formatSum(s.total)}</td>
+          </tr>`;
+        });
+      }
+
+      html += `<tr><td colspan="6" style="border: none; height: 15px;"></td></tr>
+
+    <!-- Top Selling Products -->
+    <tr>
+      <td colspan="6" class="section-header">ENG KO'P SOTILGAN MAHSULOTLAR (TOP 10)</td>
+    </tr>
+    <tr>
+      <th colspan="2">Mahsulot Nomi</th>
+      <th colspan="2">SKU (Kod)</th>
+      <th class="number-cell">Sotilgan Soni</th>
+      <th class="number-cell">Jami Tushum</th>
+    </tr>`;
+
+      if (repTopProducts.length === 0) {
+        html += `<tr><td colspan="6" class="text-center">Mahsulot savdolari bo'yicha ma'lumotlar yo'q</td></tr>`;
+      } else {
+        repTopProducts.slice(0, 10).forEach(p => {
+          html += `<tr>
+            <td colspan="2" style="font-weight: 500;">${p.name}</td>
+            <td colspan="2" style="color: #6e6461;">${p.sku}</td>
+            <td class="number-cell">${p.qty} dona</td>
+            <td class="number-cell" style="font-weight: bold; color: #2e7d32;">${formatSum(p.revenue)}</td>
+          </tr>`;
+        });
+      }
+
+      html += `<tr><td colspan="6" style="border: none; height: 15px;"></td></tr>
+
+    <!-- Transactions list -->
+    <tr>
+      <td colspan="6" class="section-header">FAKTURALAR RO'YXATI</td>
+    </tr>
+    <tr>
+      <th>Faktura ID</th>
+      <th>Sana & Vaqt</th>
+      <th colspan="2">Mijoz</th>
+      <th>To'lov Usuli</th>
+      <th class="number-cell">Summa</th>
+    </tr>`;
+
+      if (repTransactions.length === 0) {
+        html += `<tr><td colspan="6" class="text-center">Hech qanday sotuv topilmadi</td></tr>`;
+      } else {
+        repTransactions.forEach(t => {
+          html += `<tr>
+            <td style="font-weight: bold;">${t.id}</td>
+            <td>${t.date} ${t.time}</td>
+            <td colspan="2">
+              <strong>${t.customerName}</strong><br/>
+              <span style="font-size: 8.5pt; color: #6e6461;">${t.customerPhone}</span>
+            </td>
+            <td><span class="badge">${t.paymentMethod}</span></td>
+            <td class="number-cell" style="font-weight: bold;">${formatSum(t.totalAmount)}</td>
+          </tr>`;
+        });
+      }
+
+      html += `
+  </table>
+</body>
+</html>`;
+
+      const blob = new Blob([html], { type: 'application/vnd.ms-excel;charset=utf-8' });
+      const url = URL.createObjectURL(blob);
+      const link = document.createElement('a');
+      link.href = url;
+      link.download = `Sotuvlar_Hisoboti_${reportDate || 'sana_oraligi'}.xls`;
+      document.body.appendChild(link);
+      link.click();
+      document.body.removeChild(link);
+      URL.revokeObjectURL(url);
+      showToast("Muvaffaqiyatli", "Hisobot Excel formatida yuklab olindi.", "success");
+    } catch (err) {
+      console.error(err);
+      showToast("Xatolik", "Excel yuklashda xatolik yuz berdi.", "danger");
+    }
   };
 
   // --- ADD BATCH MODAL ACTION ---
@@ -3601,10 +3820,14 @@ service cloud.firestore {
                   <h1>Sotuvlar Hisoboti (Sales Reports)</h1>
                   <p>Do'konning kunlik va ma'lum sana oralig'idagi savdo ko'rsatkichlari tahlili</p>
                 </div>
-                <div className="header-actions">
+                <div className="header-actions" style={{ display: 'flex', gap: '0.75rem', alignItems: 'center' }}>
                   <button type="button" className="btn btn-secondary" onClick={handlePrintReport}>
                     <Printer size={15} />
-                    <span>Chop etish (Print)</span>
+                    <span>Chop etish (PDF)</span>
+                  </button>
+                  <button type="button" className="btn" onClick={handleDownloadExcel} style={{ backgroundColor: 'var(--color-success)', color: '#fff', borderColor: 'var(--color-success)', display: 'inline-flex', alignItems: 'center', gap: '6px' }}>
+                    <Download size={15} />
+                    <span>Excelga yuklash</span>
                   </button>
                 </div>
               </div>
