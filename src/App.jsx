@@ -176,6 +176,12 @@ export default function App() {
   const [categoryFilter, setCategoryFilter] = useState('All');
   const [expandedProduct, setExpandedProduct] = useState(null);
 
+  // --- Reports State ---
+  const [reportType, setReportType] = useState('daily'); // 'daily' or 'range'
+  const [reportDate, setReportDate] = useState(() => new Date().toLocaleDateString('en-CA', { timeZone: 'Asia/Tashkent' }));
+  const [reportStartDate, setReportStartDate] = useState(() => new Date().toLocaleDateString('en-CA', { timeZone: 'Asia/Tashkent' }));
+  const [reportEndDate, setReportEndDate] = useState(() => new Date().toLocaleDateString('en-CA', { timeZone: 'Asia/Tashkent' }));
+
   // --- Toast Alerts ---
   const [toasts, setToasts] = useState([]);
 
@@ -1894,6 +1900,50 @@ export default function App() {
     }
   };
 
+  const handlePrintReport = () => {
+    const printContent = document.getElementById('printable-report-area').innerHTML;
+    const printWindow = window.open('', '', 'height=700,width=900');
+    if (!printWindow) {
+      showToast("Xatolik", "Pop-up oyna bloklandi! Iltimos, pop-up oynalarga ruxsat bering.", "warning");
+      return;
+    }
+    printWindow.document.write('<html><head><title>Sotuvlar Hisoboti</title>');
+    printWindow.document.write('<style>');
+    printWindow.document.write(`
+      body { font-family: sans-serif; padding: 25px; color: #1C1A19; background: #fff; }
+      h1 { text-align: center; margin-bottom: 5px; font-size: 1.8rem; }
+      .subtitle { text-align: center; color: #6E6461; font-size: 0.95rem; margin-bottom: 30px; }
+      .kpi-grid { display: grid; grid-template-columns: repeat(4, 1fr); gap: 15px; margin-bottom: 30px; }
+      .kpi-card { border: 1px solid #D4CBC4; padding: 15px; border-radius: 10px; background: #F7F4F1; }
+      .kpi-title { font-size: 0.8rem; color: #6E6461; font-weight: bold; text-transform: uppercase; }
+      .kpi-value { font-size: 1.3rem; font-weight: bold; margin-top: 5px; color: #1C1A19; }
+      .kpi-trend { font-size: 0.75rem; color: #6E6461; margin-top: 5px; }
+      .dashboard-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 20px; margin-bottom: 30px; }
+      .panel { border: 1px solid #D4CBC4; border-radius: 10px; padding: 15px; background: #fff; }
+      .panel-header { border-bottom: 1px solid #EAE5E0; padding-bottom: 10px; margin-bottom: 15px; }
+      .panel-title h3 { margin: 0; font-size: 1.1rem; }
+      .panel-title p { margin: 3px 0 0 0; font-size: 0.8rem; color: #6E6461; }
+      table { width: 100%; border-collapse: collapse; margin-bottom: 10px; font-size: 0.85rem; }
+      th, td { border: 1px solid #D4CBC4; padding: 8px; text-align: left; }
+      th { background-color: #EDE8E3; font-weight: 600; }
+      .text-right { text-align: right; }
+      .text-center { text-align: center; }
+      .badge { padding: 3px 6px; border-radius: 4px; font-size: 0.75rem; font-weight: bold; display: inline-block; }
+      .badge-info { background: #E8F0F7; color: #4A6882; }
+      .no-print { display: none !important; }
+      .printable-report-header { display: block !important; text-align: center; margin-bottom: 25px; }
+    `);
+    printWindow.document.write('</style></head><body>');
+    printWindow.document.write(printContent);
+    printWindow.document.write('</body></html>');
+    printWindow.document.close();
+    printWindow.focus();
+    setTimeout(() => {
+      printWindow.print();
+      printWindow.close();
+    }, 350);
+  };
+
   // --- ADD BATCH MODAL ACTION ---
   const submitAddBatch = async (e) => {
     e.preventDefault();
@@ -2224,6 +2274,12 @@ export default function App() {
             <FileText size={16} />
             <span>Fakturalar</span>
           </button>
+          {currentUser && (currentUser.role === 'admin' || currentUser.role === 'sotuvchi') && (
+            <button className={`nav-link-item ${activeTab === 'reports' ? 'active' : ''}`} onClick={() => setActiveTab('reports')}>
+              <TrendingUp size={16} />
+              <span>Hisobotlar</span>
+            </button>
+          )}
           {currentUser && (currentUser.role === 'admin' || currentUser.role === 'sotuvchi') && (
             <button className={`nav-link-item ${activeTab === 'inventory' ? 'active' : ''}`} onClick={() => setActiveTab('inventory')}>
               <Package size={16} />
@@ -3454,6 +3510,468 @@ service cloud.firestore {
             </div>
           </>
         )}
+
+        {activeTab === 'reports' && currentUser && (currentUser.role === 'admin' || currentUser.role === 'sotuvchi') && (() => {
+          const repTransactions = activeTransactions.filter(t => {
+            if (reportType === 'daily') {
+              return t.date === reportDate;
+            } else {
+              return t.date >= reportStartDate && t.date <= reportEndDate;
+            }
+          });
+
+          const repTotalSales = repTransactions.reduce((sum, t) => sum + (t.totalAmount || 0), 0);
+          const repTotalDiscount = repTransactions.reduce((sum, t) => sum + (t.discountAmount || 0), 0);
+          const repTotalSubtotal = repTransactions.reduce((sum, t) => sum + (t.subtotal || 0), 0);
+          const repCount = repTransactions.length;
+          const repAverageBill = repCount > 0 ? repTotalSales / repCount : 0;
+          const repTotalItems = repTransactions.reduce((sum, t) => sum + (t.items?.reduce((s, i) => s + (i.qty || 0), 0) || 0), 0);
+
+          let repCash = 0;
+          let repCard = 0;
+          repTransactions.forEach(t => {
+            if (t.paymentMethod?.includes('Naqd') || t.paymentMethod?.includes('Cash')) {
+              repCash += t.totalAmount || 0;
+            } else if (t.paymentMethod?.includes('Karta') || t.paymentMethod?.includes('Card')) {
+              repCard += t.totalAmount || 0;
+            } else if (t.mixPayDetails) {
+              repCash += t.mixPayDetails.cash || 0;
+              repCard += t.mixPayDetails.card || 0;
+            } else {
+              repCash += t.totalAmount || 0;
+            }
+          });
+
+          const repProductMap = {};
+          repTransactions.forEach(t => {
+            t.items?.forEach(item => {
+              const sku = item.sku;
+              if (!sku) return;
+              const qty = item.qty || 0;
+              
+              let price = item.price;
+              let name = item.name;
+              if (!price || price === 0) {
+                for (const p of products) {
+                  const variant = p.variants?.find(v => v.sku === sku);
+                  if (variant) {
+                    price = variant.price;
+                    if (!name) name = p.name;
+                    break;
+                  }
+                }
+              }
+              
+              const total = (price || 0) * qty;
+
+              if (!repProductMap[sku]) {
+                repProductMap[sku] = {
+                  sku,
+                  name: name || item.name || sku,
+                  qty: 0,
+                  revenue: 0
+                };
+              }
+              repProductMap[sku].qty += qty;
+              repProductMap[sku].revenue += total;
+            });
+          });
+
+          const repTopProducts = Object.values(repProductMap).sort((a, b) => b.qty - a.qty);
+
+          const repSellerMap = {};
+          repTransactions.forEach(t => {
+            const seller = t.sellerName || "Noma'lum";
+            if (!repSellerMap[seller]) {
+              repSellerMap[seller] = {
+                name: seller,
+                total: 0,
+                count: 0
+              };
+            }
+            repSellerMap[seller].total += t.totalAmount || 0;
+            repSellerMap[seller].count += 1;
+          });
+          const repSellers = Object.values(repSellerMap).sort((a, b) => b.total - a.total);
+
+          return (
+            <>
+              <div className="page-header" style={{ paddingBottom: '0.75rem', marginBottom: '1rem' }}>
+                <div className="header-title">
+                  <h1>Sotuvlar Hisoboti (Sales Reports)</h1>
+                  <p>Do'konning kunlik va ma'lum sana oralig'idagi savdo ko'rsatkichlari tahlili</p>
+                </div>
+                <div className="header-actions">
+                  <button type="button" className="btn btn-secondary" onClick={handlePrintReport}>
+                    <Printer size={15} />
+                    <span>Chop etish (Print)</span>
+                  </button>
+                </div>
+              </div>
+
+              {/* Filter Panel */}
+              <div className="panel" style={{ padding: '1.25rem', marginBottom: '1.5rem' }}>
+                <div style={{ display: 'flex', flexWrap: 'wrap', gap: '1.5rem', alignItems: 'center', justifyContent: 'space-between' }}>
+                  <div style={{ display: 'flex', gap: '0.5rem', background: 'var(--bg-tertiary)', padding: '4px', borderRadius: 'var(--radius-md)' }}>
+                    <button
+                      type="button"
+                      className="btn"
+                      style={{
+                        padding: '0.5rem 1rem',
+                        fontSize: '0.85rem',
+                        background: reportType === 'daily' ? 'var(--color-brand)' : 'transparent',
+                        color: reportType === 'daily' ? '#FFF' : 'var(--color-text-main)',
+                        border: 'none',
+                        borderRadius: 'var(--radius-sm)',
+                        cursor: 'pointer',
+                        fontWeight: 500,
+                      }}
+                      onClick={() => setReportType('daily')}
+                    >
+                      Kunlik hisobot
+                    </button>
+                    <button
+                      type="button"
+                      className="btn"
+                      style={{
+                        padding: '0.5rem 1rem',
+                        fontSize: '0.85rem',
+                        background: reportType === 'range' ? 'var(--color-brand)' : 'transparent',
+                        color: reportType === 'range' ? '#FFF' : 'var(--color-text-main)',
+                        border: 'none',
+                        borderRadius: 'var(--radius-sm)',
+                        cursor: 'pointer',
+                        fontWeight: 500,
+                      }}
+                      onClick={() => setReportType('range')}
+                    >
+                      Sana oralig'i
+                    </button>
+                  </div>
+
+                  <div style={{ display: 'flex', alignItems: 'center', gap: '1rem', flexWrap: 'wrap' }}>
+                    {reportType === 'daily' ? (
+                      <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
+                        <span style={{ fontSize: '0.85rem', fontWeight: 500, color: 'var(--color-text-muted)' }}>Sanani tanlang:</span>
+                        <input
+                          type="date"
+                          className="form-control"
+                          style={{
+                            padding: '0.4rem 0.8rem',
+                            borderRadius: 'var(--radius-md)',
+                            border: '1px solid var(--border-color)',
+                            fontSize: '0.9rem',
+                          }}
+                          value={reportDate}
+                          onChange={(e) => setReportDate(e.target.value)}
+                        />
+                      </div>
+                    ) : (
+                      <div style={{ display: 'flex', alignItems: 'center', gap: '1rem', flexWrap: 'wrap' }}>
+                        <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
+                          <span style={{ fontSize: '0.85rem', fontWeight: 500, color: 'var(--color-text-muted)' }}>Boshlanish:</span>
+                          <input
+                            type="date"
+                            className="form-control"
+                            style={{
+                              padding: '0.4rem 0.8rem',
+                              borderRadius: 'var(--radius-md)',
+                              border: '1px solid var(--border-color)',
+                              fontSize: '0.9rem',
+                            }}
+                            value={reportStartDate}
+                            onChange={(e) => setReportStartDate(e.target.value)}
+                          />
+                        </div>
+                        <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
+                          <span style={{ fontSize: '0.85rem', fontWeight: 500, color: 'var(--color-text-muted)' }}>Tugash:</span>
+                          <input
+                            type="date"
+                            className="form-control"
+                            style={{
+                              padding: '0.4rem 0.8rem',
+                              borderRadius: 'var(--radius-md)',
+                              border: '1px solid var(--border-color)',
+                              fontSize: '0.9rem',
+                            }}
+                            value={reportEndDate}
+                            onChange={(e) => setReportEndDate(e.target.value)}
+                          />
+                        </div>
+                      </div>
+                    )}
+                  </div>
+                </div>
+              </div>
+
+              {/* Print Area Wrapper */}
+              <div id="printable-report-area">
+                <div className="printable-report-header" style={{ display: 'none' }}>
+                  <h1>Vidalita POS - Sotuvlar Hisoboti</h1>
+                  <p className="subtitle">
+                    {reportType === 'daily'
+                      ? `Kunlik hisobot: ${reportDate}`
+                      : `Sana oralig'idagi hisobot: ${reportStartDate} dan ${reportEndDate} gacha`}
+                  </p>
+                </div>
+
+                {/* KPI STATS */}
+                <div className="kpi-grid" style={{ marginBottom: '1.5rem' }}>
+                  <div className="kpi-card success">
+                    <div>
+                      <div className="kpi-icon">
+                        <TrendingUp size={20} />
+                      </div>
+                      <div className="kpi-info">
+                        <span className="kpi-title">Umumiy Tushum</span>
+                        <span className="kpi-value">{formatSum(repTotalSales)}</span>
+                      </div>
+                    </div>
+                    <div className="kpi-trend up">
+                      <span>Chegirma: -{formatSum(repTotalDiscount)}</span>
+                    </div>
+                  </div>
+
+                  <div className="kpi-card">
+                    <div>
+                      <div className="kpi-icon" style={{ color: 'var(--color-brand)', backgroundColor: 'var(--color-brand-light)' }}>
+                        <ShoppingCart size={20} />
+                      </div>
+                      <div className="kpi-info">
+                        <span className="kpi-title">Fakturalar Soni</span>
+                        <span className="kpi-value">{repCount} ta</span>
+                      </div>
+                    </div>
+                    <div className="kpi-trend up">
+                      <span>O'rtacha chek: {formatSum(repAverageBill)}</span>
+                    </div>
+                  </div>
+
+                  <div className="kpi-card">
+                    <div>
+                      <div className="kpi-icon" style={{ color: 'var(--color-info)', backgroundColor: 'var(--color-info-light)' }}>
+                        <Package size={20} />
+                      </div>
+                      <div className="kpi-info">
+                        <span className="kpi-title">Sotilgan Tovar/Hajm</span>
+                        <span className="kpi-value">{repTotalItems} dona</span>
+                      </div>
+                    </div>
+                    <div className="kpi-trend up">
+                      <span>Barcha sotuvlar bo'yicha</span>
+                    </div>
+                  </div>
+
+                  <div className="kpi-card">
+                    <div>
+                      <div className="kpi-icon" style={{ color: 'var(--color-warning)', backgroundColor: 'var(--color-warning-light)' }}>
+                        <Layers size={20} />
+                      </div>
+                      <div className="kpi-info">
+                        <span className="kpi-title">Umumiy Qiymat (Subtotal)</span>
+                        <span className="kpi-value">{formatSum(repTotalSubtotal)}</span>
+                      </div>
+                    </div>
+                    <div className="kpi-trend down">
+                      <span>Chegirmasiz jami</span>
+                    </div>
+                  </div>
+                </div>
+
+                {/* Analytics grid */}
+                <div className="dashboard-grid" style={{ marginBottom: '1.5rem' }}>
+                  {/* Payment Breakdown */}
+                  <div className="panel">
+                    <div className="panel-header">
+                      <div className="panel-title">
+                        <h3>To'lov usullari tahlili</h3>
+                        <p>Kassa tushumlarining to'lov turlari bo'yicha taqsimoti</p>
+                      </div>
+                      <CreditCard size={16} style={{ color: 'var(--color-text-muted)' }} />
+                    </div>
+                    <div className="panel-body" style={{ padding: '1.25rem' }}>
+                      <div style={{ display: 'flex', flexDirection: 'column', gap: '1.25rem' }}>
+                        {/* Cash progress */}
+                        <div>
+                          <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '0.4rem', fontSize: '0.85rem' }}>
+                            <span style={{ fontWeight: 500, color: 'var(--color-text-main)' }}>Naqd pul (Cash)</span>
+                            <span style={{ fontWeight: 600 }}>
+                              {formatSum(repCash)} ({repTotalSales > 0 ? Math.round((repCash / repTotalSales) * 100) : 0}%)
+                            </span>
+                          </div>
+                          <div style={{ height: '8px', background: 'var(--bg-tertiary)', borderRadius: '4px', overflow: 'hidden' }}>
+                            <div style={{
+                              height: '100%',
+                              width: `${repTotalSales > 0 ? (repCash / repTotalSales) * 100 : 0}%`,
+                              background: 'var(--color-success)',
+                              borderRadius: '4px',
+                              transition: 'width 0.4s ease'
+                            }} />
+                          </div>
+                        </div>
+
+                        {/* Card progress */}
+                        <div>
+                          <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '0.4rem', fontSize: '0.85rem' }}>
+                            <span style={{ fontWeight: 500, color: 'var(--color-text-main)' }}>Plastik karta (Card/Terminal)</span>
+                            <span style={{ fontWeight: 600 }}>
+                              {formatSum(repCard)} ({repTotalSales > 0 ? Math.round((repCard / repTotalSales) * 100) : 0}%)
+                            </span>
+                          </div>
+                          <div style={{ height: '8px', background: 'var(--bg-tertiary)', borderRadius: '4px', overflow: 'hidden' }}>
+                            <div style={{
+                              height: '100%',
+                              width: `${repTotalSales > 0 ? (repCard / repTotalSales) * 100 : 0}%`,
+                              background: 'var(--color-info)',
+                              borderRadius: '4px',
+                              transition: 'width 0.4s ease'
+                            }} />
+                          </div>
+                        </div>
+                      </div>
+                    </div>
+                  </div>
+
+                  {/* Seller/Cashier Breakdown */}
+                  <div className="panel">
+                    <div className="panel-header">
+                      <div className="panel-title">
+                        <h3>Sotuvchilar ulushi</h3>
+                        <p>Kassirlar va xodimlarning savdo hajmi bo'yicha tahlili</p>
+                      </div>
+                      <Users size={16} style={{ color: 'var(--color-text-muted)' }} />
+                    </div>
+                    <div className="panel-body" style={{ padding: '1rem' }}>
+                      <div style={{ display: 'flex', flexDirection: 'column', gap: '0.75rem', maxHeight: '200px', overflowY: 'auto' }}>
+                        {repSellers.length === 0 ? (
+                          <div style={{ textAlign: 'center', padding: '2rem', color: 'var(--color-text-light)' }}>
+                            Sotuvchilar ma'lumotlari mavjud emas
+                          </div>
+                        ) : (
+                          repSellers.map((s, idx) => (
+                            <div key={idx} style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', borderBottom: '1px solid var(--border-color)', paddingBottom: '0.5rem', fontSize: '0.85rem' }}>
+                              <div>
+                                <span style={{ fontWeight: 600, color: 'var(--color-text-main)' }}>{s.name}</span>
+                                <span style={{ color: 'var(--color-text-muted)', marginLeft: '8px', fontSize: '0.75rem' }}>({s.count} ta faktura)</span>
+                              </div>
+                              <span style={{ fontWeight: 600, color: 'var(--color-brand)' }}>{formatSum(s.total)}</span>
+                            </div>
+                          ))
+                        )}
+                      </div>
+                    </div>
+                  </div>
+                </div>
+
+                {/* Top Selling Products */}
+                <div className="panel" style={{ marginBottom: '1.5rem' }}>
+                  <div className="panel-header">
+                    <div className="panel-title">
+                      <h3>Eng ko'p sotilgan mahsulotlar</h3>
+                      <p>Ushbu muddat ichida eng yuqori talabga ega bo'lgan tovarlar reytingi</p>
+                    </div>
+                    <TrendingUp size={16} style={{ color: 'var(--color-text-muted)' }} />
+                  </div>
+                  <div className="panel-body" style={{ padding: '0' }}>
+                    <div className="table-responsive">
+                      <table className="table" style={{ width: '100%', borderCollapse: 'collapse', fontSize: '0.85rem' }}>
+                        <thead>
+                          <tr>
+                            <th style={{ textAlign: 'left', padding: '0.75rem 1rem' }}>Mahsulot Nomi</th>
+                            <th style={{ textAlign: 'left', padding: '0.75rem 1rem' }}>SKU (Kod)</th>
+                            <th style={{ textAlign: 'right', padding: '0.75rem 1rem' }}>Sotilgan Soni</th>
+                            <th style={{ textAlign: 'right', padding: '0.75rem 1rem' }}>Jami Tushum</th>
+                          </tr>
+                        </thead>
+                        <tbody>
+                          {repTopProducts.length === 0 ? (
+                            <tr>
+                              <td colSpan="4" style={{ textAlign: 'center', padding: '2rem', color: 'var(--color-text-light)' }}>
+                                Mahsulot savdolari bo'yicha ma'lumotlar yo'q
+                              </td>
+                            </tr>
+                          ) : (
+                            repTopProducts.slice(0, 10).map((prod, idx) => (
+                              <tr key={idx}>
+                                <td style={{ padding: '0.75rem 1rem', fontWeight: 500 }}>{prod.name}</td>
+                                <td style={{ padding: '0.75rem 1rem', color: 'var(--color-text-muted)' }}>{prod.sku}</td>
+                                <td style={{ padding: '0.75rem 1rem', textAlign: 'right', fontWeight: 600 }}>{prod.qty} dona</td>
+                                <td style={{ padding: '0.75rem 1rem', textAlign: 'right', fontWeight: 600, color: 'var(--color-success)' }}>
+                                  {formatSum(prod.revenue)}
+                                </td>
+                              </tr>
+                            ))
+                          )}
+                        </tbody>
+                      </table>
+                    </div>
+                  </div>
+                </div>
+
+                {/* Transactions List */}
+                <div className="panel">
+                  <div className="panel-header">
+                    <div className="panel-title">
+                      <h3>Fakturalar ro'yxati</h3>
+                      <p>Filtrlangan davrdagi barcha faol sotuvlar ro'yxati</p>
+                    </div>
+                    <FileText size={16} style={{ color: 'var(--color-text-muted)' }} />
+                  </div>
+                  <div className="panel-body" style={{ padding: '0' }}>
+                    <div className="table-responsive">
+                      <table className="table" style={{ width: '100%', borderCollapse: 'collapse', fontSize: '0.85rem' }}>
+                        <thead>
+                          <tr>
+                            <th style={{ textAlign: 'left', padding: '0.75rem 1rem' }}>Faktura ID</th>
+                            <th style={{ textAlign: 'left', padding: '0.75rem 1rem' }}>Sana & Vaqt</th>
+                            <th style={{ textAlign: 'left', padding: '0.75rem 1rem' }}>Mijoz</th>
+                            <th style={{ textAlign: 'left', padding: '0.75rem 1rem' }}>To'lov Usuli</th>
+                            <th style={{ textAlign: 'right', padding: '0.75rem 1rem' }}>Summa</th>
+                            <th className="no-print" style={{ textAlign: 'center', padding: '0.75rem 1rem' }}>Amallar</th>
+                          </tr>
+                        </thead>
+                        <tbody>
+                          {repTransactions.length === 0 ? (
+                            <tr>
+                              <td colSpan="6" style={{ textAlign: 'center', padding: '2rem', color: 'var(--color-text-light)' }}>
+                                Filtrlangan muddatda hech qanday sotuv topilmadi.
+                              </td>
+                            </tr>
+                          ) : (
+                            repTransactions.map((t) => (
+                              <tr key={t.id}>
+                                <td style={{ padding: '0.75rem 1rem', fontWeight: 600 }}>{t.id}</td>
+                                <td style={{ padding: '0.75rem 1rem' }}>{t.date} {t.time}</td>
+                                <td style={{ padding: '0.75rem 1rem' }}>
+                                  <div style={{ fontWeight: 500 }}>{t.customerName}</div>
+                                  <div style={{ fontSize: '0.75rem', color: 'var(--color-text-light)' }}>{t.customerPhone}</div>
+                                </td>
+                                <td style={{ padding: '0.75rem 1rem' }}>
+                                  <span className="badge badge-info" style={{ fontSize: '0.75rem' }}>{t.paymentMethod}</span>
+                                </td>
+                                <td style={{ padding: '0.75rem 1rem', textAlign: 'right', fontWeight: 600 }}>{formatSum(t.totalAmount)}</td>
+                                <td className="no-print" style={{ padding: '0.75rem 1rem', textAlign: 'center' }}>
+                                  <button
+                                    type="button"
+                                    className="btn btn-secondary"
+                                    style={{ padding: '0.25rem 0.5rem', fontSize: '0.75rem' }}
+                                    onClick={() => setActivePOSInvoice(t)}
+                                  >
+                                    Ko'rish (Receipt)
+                                  </button>
+                                </td>
+                              </tr>
+                            ))
+                          )}
+                        </tbody>
+                      </table>
+                    </div>
+                  </div>
+                </div>
+              </div>
+            </>
+          );
+        })()}
 
       </main>
 
