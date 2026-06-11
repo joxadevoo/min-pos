@@ -1960,6 +1960,93 @@ export default function App() {
 
   const handleDownloadExcel = () => {
     try {
+      // 1. Calculate repTransactions locally
+      const repTransactions = activeTransactions.filter(t => {
+        if (reportType === 'daily') {
+          return t.date === reportDate;
+        } else {
+          return t.date >= reportStartDate && t.date <= reportEndDate;
+        }
+      });
+
+      // 2. Calculate KPI summary data
+      const repTotalSales = repTransactions.reduce((sum, t) => sum + (t.totalAmount || 0), 0);
+      const repTotalDiscount = repTransactions.reduce((sum, t) => sum + (t.discountAmount || 0), 0);
+      const repTotalSubtotal = repTransactions.reduce((sum, t) => sum + (t.subtotal || 0), 0);
+      const repCount = repTransactions.length;
+      const repAverageBill = repCount > 0 ? repTotalSales / repCount : 0;
+      const repTotalItems = repTransactions.reduce((sum, t) => sum + (t.items?.reduce((s, i) => s + (i.qty || 0), 0) || 0), 0);
+
+      // 3. Calculate Cash and Card sums
+      let repCash = 0;
+      let repCard = 0;
+      repTransactions.forEach(t => {
+        if (t.paymentMethod?.includes('Naqd') || t.paymentMethod?.includes('Cash')) {
+          repCash += t.totalAmount || 0;
+        } else if (t.paymentMethod?.includes('Karta') || t.paymentMethod?.includes('Card')) {
+          repCard += t.totalAmount || 0;
+        } else if (t.mixPayDetails) {
+          repCash += t.mixPayDetails.cash || 0;
+          repCard += t.mixPayDetails.card || 0;
+        } else {
+          repCash += t.totalAmount || 0;
+        }
+      });
+
+      // 4. Calculate Top Selling Products
+      const repProductMap = {};
+      repTransactions.forEach(t => {
+        t.items?.forEach(item => {
+          const sku = item.sku;
+          if (!sku) return;
+          const qty = item.qty || 0;
+          
+          let price = item.price;
+          let name = item.name;
+          if (!price || price === 0) {
+            for (const p of products) {
+              const variant = p.variants?.find(v => v.sku === sku);
+              if (variant) {
+                price = variant.price;
+                if (!name) name = p.name;
+                break;
+              }
+            }
+          }
+          
+          const total = (price || 0) * qty;
+
+          if (!repProductMap[sku]) {
+            repProductMap[sku] = {
+              sku,
+              name: name || item.name || sku,
+              qty: 0,
+              revenue: 0
+            };
+          }
+          repProductMap[sku].qty += qty;
+          repProductMap[sku].revenue += total;
+        });
+      });
+      const repTopProducts = Object.values(repProductMap).sort((a, b) => b.qty - a.qty);
+
+      // 5. Calculate Seller Share
+      const repSellerMap = {};
+      repTransactions.forEach(t => {
+        const seller = t.sellerName || "Noma'lum";
+        if (!repSellerMap[seller]) {
+          repSellerMap[seller] = {
+            name: seller,
+            total: 0,
+            count: 0
+          };
+        }
+        repSellerMap[seller].total += t.totalAmount || 0;
+        repSellerMap[seller].count += 1;
+      });
+      const repSellers = Object.values(repSellerMap).sort((a, b) => b.total - a.total);
+
+      // 6. Build the Excel HTML representation
       const title = reportType === 'daily'
         ? `Kunlik Sotuvlar Hisoboti - ${reportDate}`
         : `Sotuvlar Hisoboti - ${reportStartDate} dan ${reportEndDate} gacha`;
