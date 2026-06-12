@@ -2219,3 +2219,54 @@ select:focus-visible {
     text-align: left;
   }
 }
+
+/* html5-qrcode custom styles to look premium */
+#qr-reader {
+  border: none !important;
+  background-color: #fcfbf9 !important;
+}
+#qr-reader__dashboard {
+  padding: 12px !important;
+  border-top: 1px solid var(--border-color) !important;
+  background-color: white !important;
+}
+#qr-reader__dashboard_section_csr button {
+  background: linear-gradient(135deg, var(--color-brand) 0%, #d4a373 100%) !important;
+  color: white !important;
+  border: none !important;
+  padding: 8px 16px !important;
+  border-radius: 6px !important;
+  cursor: pointer !important;
+  font-size: 0.85rem !important;
+  font-weight: 500 !important;
+  margin: 5px !important;
+  transition: all 0.2s ease !important;
+}
+#qr-reader__dashboard_section_csr button:hover {
+  opacity: 0.9 !important;
+  transform: translateY(-1px) !important;
+}
+#qr-reader__camera_selection {
+  padding: 6px 12px !important;
+  border-radius: 6px !important;
+  border: 1px solid var(--border-color) !important;
+  font-size: 0.85rem !important;
+  outline: none !important;
+  margin: 5px !important;
+  background-color: white !important;
+}
+#qr-reader__scan_region img {
+  display: none !important;
+}
+#qr-reader__dashboard_section_fsr {
+  display: none !important;
+}
+#qr-reader__status_span {
+  font-size: 0.8rem !important;
+  color: var(--color-text-muted) !important;
+}
+#qr-reader__header_message {
+  font-size: 0.85rem !important;
+  font-weight: 500 !important;
+}
+

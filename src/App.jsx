@@ -33,8 +33,12 @@ import {
   Heart,
   Smile,
   Scissors,
-  Sparkle
+  Sparkle,
+  QrCode,
+  Scan
 } from 'lucide-react';
+import { Html5QrcodeScanner } from 'html5-qrcode';
+
 import {
   initialProducts,
   initialRawMaterials,
@@ -202,6 +206,13 @@ export default function App() {
   const [mixPayCash, setMixPayCash] = useState(0);
   const [mixPayCard, setMixPayCard] = useState(0);
   const [customDiscount, setCustomDiscount] = useState(0);
+
+  // Scanner States
+  const [scannedInput, setScannedInput] = useState('');
+  const [isScannerAutofocus, setIsScannerAutofocus] = useState(true);
+  const [isCameraScannerOpen, setIsCameraScannerOpen] = useState(false);
+  const scannerInputRef = React.useRef(null);
+
 
   // --- Modal Control ---
   const [activeModal, setActiveModal] = useState(null);
@@ -1194,6 +1205,118 @@ export default function App() {
       showToast("Savatga qo'shildi", `${product.name} - ${variant.name} savatga qo'shildi.`, "success");
     }
   };
+
+  // QR / Barcode Scanner handlers and effects
+  const handleScanSKU = (scannedSku) => {
+    const cleanSku = scannedSku.trim().toLowerCase();
+    if (!cleanSku) return false;
+
+    let foundProduct = null;
+    let foundVariant = null;
+
+    for (const p of products) {
+      const v = p.variants.find(varItem => varItem.sku.trim().toLowerCase() === cleanSku);
+      if (v) {
+        foundProduct = p;
+        foundVariant = v;
+        break;
+      }
+    }
+
+    if (foundProduct && foundVariant) {
+      addToCart(foundVariant, foundProduct);
+      return true;
+    }
+
+    showToast("Mahsulot topilmadi", `Tizimda "${scannedSku}" SKU bilan mahsulot topilmadi.`, "warning");
+    return false;
+  };
+
+  const handleScannerKeyDown = (e) => {
+    if (e.key === 'Enter') {
+      e.preventDefault();
+      const success = handleScanSKU(scannedInput);
+      if (success) {
+        setScannedInput('');
+      }
+    }
+  };
+
+  // Keep focus on the scanner input
+  useEffect(() => {
+    if (activeTab === 'pos' && isScannerAutofocus && scannerInputRef.current) {
+      scannerInputRef.current.focus();
+    }
+  }, [activeTab, isScannerAutofocus]);
+
+  useEffect(() => {
+    if (!isScannerAutofocus || activeTab !== 'pos' || isCameraScannerOpen) return;
+
+    const handleFocusKeep = () => {
+      setTimeout(() => {
+        if (
+          document.activeElement &&
+          (document.activeElement.tagName === 'INPUT' ||
+            document.activeElement.tagName === 'TEXTAREA' ||
+            document.activeElement.tagName === 'SELECT' ||
+            document.activeElement.closest('.modal-content') ||
+            document.activeElement.closest('.pos-cart-footer') ||
+            document.activeElement.closest('.pos-customer-section'))
+        ) {
+          return;
+        }
+        if (scannerInputRef.current) {
+          scannerInputRef.current.focus();
+        }
+      }, 300);
+    };
+
+    document.addEventListener('click', handleFocusKeep);
+    return () => {
+      document.removeEventListener('click', handleFocusKeep);
+    };
+  }, [isScannerAutofocus, activeTab, isCameraScannerOpen]);
+
+  // Handle Camera QR Scanner lifecycle
+  useEffect(() => {
+    let html5QrcodeScanner = null;
+    if (isCameraScannerOpen) {
+      const timer = setTimeout(() => {
+        const readerElement = document.getElementById("qr-reader");
+        if (readerElement) {
+          html5QrcodeScanner = new Html5QrcodeScanner(
+            "qr-reader",
+            { 
+              fps: 10, 
+              qrbox: { width: 250, height: 250 },
+              aspectRatio: 1.0
+            },
+            /* verbose= */ false
+          );
+          
+          html5QrcodeScanner.render(
+            (decodedText) => {
+              const success = handleScanSKU(decodedText);
+              if (success && html5QrcodeScanner) {
+                html5QrcodeScanner.clear().catch(err => console.error("Error clearing scanner:", err));
+                setIsCameraScannerOpen(false);
+              }
+            },
+            (error) => {
+              // Ignore scanning errors (occurs when no QR code is in frame)
+            }
+          );
+        }
+      }, 100);
+
+      return () => {
+        clearTimeout(timer);
+        if (html5QrcodeScanner) {
+          html5QrcodeScanner.clear().catch(err => console.error("Error clearing scanner during unmount:", err));
+        }
+      };
+    }
+  }, [isCameraScannerOpen]);
 
   const updateCartQty = (sku, newQty) => {
     if (newQty <= 0) {
@@ -2616,18 +2739,77 @@ service cloud.firestore {
               {/* Left Column: Product Grid */}
               <div className="pos-products-panel">
                 <div style={{ display: 'flex', flexDirection: 'column', gap: '0.75rem', marginBottom: '1rem' }}>
-                  {/* Search Row */}
-                  <div style={{ display: 'flex', gap: '0.5rem' }}>
-                    <div className="search-input-wrapper" style={{ flexGrow: 1 }}>
+                  {/* Search and Scanner Controls */}
+                  <div style={{ display: 'flex', gap: '0.75rem', flexWrap: 'wrap', alignItems: 'center' }}>
+                    {/* Search Input */}
+                    <div className="search-input-wrapper" style={{ flex: '2 1 250px', position: 'relative' }}>
                       <Search size={16} className="search-icon-pos" />
                       <input
                         type="text"
-                        placeholder="Mahsulot nomi yoki brendi bo'yicha qidiring..."
+                        placeholder="Qidiruv (Mahsulot nomi yoki brend)..."
                         className="search-input"
                         value={posSearchTerm}
                         onChange={(e) => setPosSearchTerm(e.target.value)}
                       />
                     </div>
+
+                    {/* Barcode/QR Scanner input */}
+                    <div className="search-input-wrapper" style={{ flex: '1 1 200px', display: 'flex', alignItems: 'center', borderColor: 'var(--color-brand)', position: 'relative' }}>
+                      <Scan size={16} className="search-icon-pos" style={{ color: 'var(--color-brand)' }} />
+                      <input
+                        ref={scannerInputRef}
+                        type="text"
+                        placeholder="QR / Barcode skanerlang..."
+                        className="search-input"
+                        value={scannedInput}
+                        onChange={(e) => setScannedInput(e.target.value)}
+                        onKeyDown={handleScannerKeyDown}
+                        style={{ paddingRight: '2rem' }}
+                      />
+                      {scannedInput && (
+                        <button 
+                          type="button" 
+                          onClick={() => setScannedInput('')} 
+                          style={{ position: 'absolute', right: '10px', background: 'none', border: 'none', cursor: 'pointer', color: 'var(--color-text-muted)', display: 'flex', alignItems: 'center', justifyContent: 'center' }}
+                        >
+                          <X size={14} />
+                        </button>
+                      )}
+                    </div>
+
+                    {/* Camera Scanner Button */}
+                    <button
+                      type="button"
+                      className="btn btn-primary"
+                      onClick={() => setIsCameraScannerOpen(true)}
+                      style={{ 
+                        display: 'flex', 
+                        alignItems: 'center', 
+                        gap: '6px', 
+                        height: '40px', 
+                        padding: '0 16px',
+                        background: 'linear-gradient(135deg, var(--color-brand) 0%, #d4a373 100%)',
+                        border: 'none',
+                        color: 'white',
+                        fontWeight: 500,
+                        fontSize: '0.85rem',
+                        cursor: 'pointer'
+                      }}
+                    >
+                      <QrCode size={18} />
+                      <span>Kamera orqali</span>
+                    </button>
+
+                    {/* Autofocus Toggle Switch */}
+                    <label style={{ display: 'flex', alignItems: 'center', gap: '6px', cursor: 'pointer', fontSize: '0.8rem', userSelect: 'none', color: 'var(--color-text-muted)' }}>
+                      <input
+                        type="checkbox"
+                        checked={isScannerAutofocus}
+                        onChange={(e) => setIsScannerAutofocus(e.target.checked)}
+                        style={{ cursor: 'pointer' }}
+                      />
+                      <span>Avto-fokus</span>
+                    </label>
                   </div>
 
                   {/* Category Selection Row (Chips) */}
@@ -5047,6 +5229,55 @@ service cloud.firestore {
                 <button type="submit" className="btn btn-primary">Xodimni Yaratish</button>
               </div>
             </form>
+          </div>
+        </div>
+      )}
+
+      {/* MODAL: CAMERA QR SCANNER */}
+      {isCameraScannerOpen && (
+        <div className="modal-overlay" style={{ zIndex: 9999 }}>
+          <div className="modal-content" style={{ maxWidth: '480px', width: '100%' }}>
+            <div className="modal-header">
+              <h3 style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                <QrCode size={20} style={{ color: 'var(--color-brand)' }} />
+                <span>Kamera orqali QR/Barcode Skanerlash</span>
+              </h3>
+              <button type="button" className="modal-close-btn" onClick={() => setIsCameraScannerOpen(false)}>
+                <X size={18} />
+              </button>
+            </div>
+            <div className="modal-body" style={{ textAlign: 'center', padding: '1.5rem' }}>
+              <p style={{ fontSize: '0.85rem', color: 'var(--color-text-muted)', marginBottom: '1rem' }}>
+                Mahsulot QR-kodini yoki shtrix-kodini kamera oldida ko'rsating.
+              </p>
+              
+              <div 
+                id="qr-reader" 
+                style={{ 
+                  width: '100%', 
+                  maxWidth: '350px', 
+                  margin: '0 auto', 
+                  borderRadius: '12px', 
+                  overflow: 'hidden',
+                  border: '2px solid var(--border-color)',
+                  boxShadow: 'var(--shadow-sm)'
+                }}
+              ></div>
+              
+              <div style={{ marginTop: '1rem', fontSize: '0.75rem', color: 'var(--color-text-light)' }}>
+                Ruxsat berilgandan so'ng kamera tasviri paydo bo'ladi.
+              </div>
+            </div>
+            <div className="modal-footer">
+              <button 
+                type="button" 
+                className="btn btn-secondary" 
+                onClick={() => setIsCameraScannerOpen(false)}
+                style={{ width: '100%' }}
+              >
+                Yopish
+              </button>
+            </div>
           </div>
         </div>
       )}
