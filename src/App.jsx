@@ -1215,7 +1215,10 @@ export default function App() {
     let foundVariant = null;
 
     for (const p of products) {
-      const v = p.variants.find(varItem => varItem.sku.trim().toLowerCase() === cleanSku);
+      const v = p.variants.find(varItem => 
+        varItem.sku.trim().toLowerCase() === cleanSku || 
+        (varItem.barcode && varItem.barcode.trim().toLowerCase() === cleanSku)
+      );
       if (v) {
         foundProduct = p;
         foundVariant = v;
@@ -1228,7 +1231,7 @@ export default function App() {
       return true;
     }
 
-    showToast("Mahsulot topilmadi", `Tizimda "${scannedSku}" SKU bilan mahsulot topilmadi.`, "warning");
+    showToast("Mahsulot topilmadi", `Tizimda "${scannedSku}" kodli mahsulot topilmadi.`, "warning");
     return false;
   };
 
@@ -2311,7 +2314,7 @@ export default function App() {
       showToast("Taqiqlangan", "Ushbu amalni bajarish uchun admin yoki sotuvchi huquqi talab etiladi!", "error");
       return;
     }
-    const { name, brand, category, skuPrefix, desc, variantName, variantSku, variantPrice, variantColor, reorderLevel } = modalInputs;
+    const { name, brand, category, skuPrefix, desc, variantName, variantSku, variantBarcode, variantPrice, variantColor, reorderLevel } = modalInputs;
 
     if (!name || !brand || !category || !skuPrefix || !variantSku || !variantPrice) {
       setModalError("Iltimos, barcha majburiy maydonlarni to'ldiring.");
@@ -2331,6 +2334,7 @@ export default function App() {
           id: `var-${Date.now()}-1`,
           name: variantName || "Standard",
           sku: variantSku,
+          barcode: (variantBarcode || '').trim(),
           colorCode: variantColor || "#A88070",
           price: parseFloat(variantPrice),
           batches: []
@@ -2363,6 +2367,65 @@ export default function App() {
       setActiveModal(null);
       setModalInputs({});
       setModalError('');
+    }
+  };
+
+  // --- BARCODE ACTIONS ---
+  const handleOpenEditBarcode = (productId, variantId, currentBarcode) => {
+    setActiveModal('edit-barcode');
+    setModalInputs({
+      productId,
+      variantId,
+      barcode: currentBarcode || ''
+    });
+    setModalError('');
+  };
+
+  const handleSaveBarcode = async (e) => {
+    e.preventDefault();
+    if (!currentUser || (currentUser.role !== 'admin' && currentUser.role !== 'sotuvchi')) {
+      showToast("Taqiqlangan", "Shtrix-kodni o'zgartirish uchun ruxsatingiz yo'q!", "error");
+      return;
+    }
+    const { productId, variantId, barcode } = modalInputs;
+
+    const updatedProducts = products.map(p => {
+      if (p.id === productId) {
+        const updatedVariants = p.variants.map(v => {
+          if (v.id === variantId) {
+            return { ...v, barcode: barcode.trim() };
+          }
+          return v;
+        });
+        return { ...p, variants: updatedVariants };
+      }
+      return p;
+    });
+
+    const targetProduct = updatedProducts.find(p => p.id === productId);
+
+    if (firebaseActive && targetProduct) {
+      try {
+        setFirebaseLoading(true);
+        await setDoc(doc(db, "products", productId), targetProduct);
+        setProducts(updatedProducts);
+        showToast("Shtrix-kod saqlandi", "Mahsulot shtrix-kodi muvaffaqiyatli saqlandi.", "success");
+        setActiveModal(null);
+        setModalInputs({});
+      } catch (err) {
+        console.error("Firestore barcode update failed:", err);
+        setProducts(updatedProducts);
+        showToast("Saqlandi (Lokal)", "Shtrix-kod lokal saqlandi (Offline).", "success");
+        setActiveModal(null);
+        setModalInputs({});
+      } finally {
+        setFirebaseLoading(false);
+      }
+    } else {
+      setProducts(updatedProducts);
+      showToast("Saqlandi (Lokal)", "Shtrix-kod lokal saqlandi (Offline).", "success");
+      setActiveModal(null);
+      setModalInputs({});
     }
   };
 
@@ -3588,15 +3651,37 @@ service cloud.firestore {
                                               </div>
                                             </div>
 
-                                            <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '0.8rem' }}>
+                                            <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '0.8rem', marginBottom: '2px' }}>
                                               <span style={{ color: 'var(--color-text-muted)' }}>Sotish narxi:</span>
                                               <span style={{ fontWeight: 600 }}>{formatSum(v.price)}</span>
                                             </div>
 
-                                            <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '0.8rem' }}>
+                                            <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '0.8rem', marginBottom: '2px' }}>
                                               <span style={{ color: 'var(--color-text-muted)' }}>Jami variant zaxira:</span>
                                               <span style={{ fontWeight: 700, color: isVLow ? 'var(--color-warning)' : 'var(--color-success)' }}>
                                                 {vStock} dona
+                                              </span>
+                                            </div>
+
+                                            <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '0.8rem', marginBottom: '2px' }}>
+                                              <span style={{ color: 'var(--color-text-muted)' }}>SKU:</span>
+                                              <span style={{ fontFamily: 'monospace', fontWeight: 500 }}>{v.sku}</span>
+                                            </div>
+
+                                            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', fontSize: '0.8rem', marginBottom: '4px' }}>
+                                              <span style={{ color: 'var(--color-text-muted)' }}>Shtrix-kod:</span>
+                                              <span style={{ display: 'flex', alignItems: 'center', gap: '4px' }}>
+                                                <span style={{ fontFamily: 'monospace', color: v.barcode ? 'var(--color-text-main)' : 'var(--color-text-light)' }}>
+                                                  {v.barcode || 'Kiritilmagan'}
+                                                </span>
+                                                <button
+                                                  type="button"
+                                                  style={{ background: 'none', border: 'none', color: 'var(--color-brand)', cursor: 'pointer', padding: '2px', display: 'flex', alignItems: 'center' }}
+                                                  onClick={() => handleOpenEditBarcode(p.id, v.id, v.barcode)}
+                                                  title="Shtrix-kodni tahrirlash"
+                                                >
+                                                  <Edit3 size={11} />
+                                                </button>
                                               </span>
                                             </div>
 
@@ -5005,12 +5090,65 @@ service cloud.firestore {
                     />
                   </div>
                 </div>
+
+                <div className="form-row">
+                  <div className="form-group">
+                    <label>Shtrix-kod (Barcode / QR-kod)</label>
+                    <input
+                      type="text"
+                      className="form-control"
+                      placeholder="Shtrix-kodni skanerlang yoki yozing..."
+                      value={modalInputs.variantBarcode || ''}
+                      onChange={(e) => setModalInputs(prev => ({ ...prev, variantBarcode: e.target.value }))}
+                    />
+                  </div>
+                </div>
               </div>
             </div>
 
             <div className="modal-footer">
               <button type="button" className="btn btn-secondary" onClick={() => setActiveModal(null)}>Bekor qilish</button>
               <button type="submit" className="btn btn-primary">Mahsulotni Yaratish</button>
+            </div>
+          </form>
+        </div>
+      )}
+
+      {/* MODAL: EDIT BARCODE */}
+      {activeModal === 'edit-barcode' && (
+        <div className="modal-overlay">
+          <form className="modal-content" onSubmit={handleSaveBarcode} style={{ maxWidth: '450px' }}>
+            <div className="modal-header">
+              <h3>Shtrix-kodni (Barcode) Tahrirlash</h3>
+              <button type="button" className="modal-close-btn" onClick={() => setActiveModal(null)}>
+                <X size={18} />
+              </button>
+            </div>
+
+            <div className="modal-body">
+              {modalError && <div style={{ color: 'var(--color-warning)', marginBottom: '1rem', fontSize: '0.85rem', padding: '0.5rem', backgroundColor: 'var(--color-warning-light)', borderRadius: '4px' }}>{modalError}</div>}
+
+              <div className="form-group">
+                <label style={{ display: 'block', marginBottom: '0.5rem', fontSize: '0.85rem', fontWeight: 600 }}>Mahsulot Shtrix-kodi (Barcode / QR)</label>
+                <input
+                  type="text"
+                  className="form-control"
+                  placeholder="Shtrix-kodni skanerlang yoki yozing..."
+                  value={modalInputs.barcode || ''}
+                  onChange={(e) => setModalInputs(prev => ({ ...prev, barcode: e.target.value }))}
+                  required
+                  autoFocus
+                  style={{ width: '100%', boxSizing: 'border-box' }}
+                />
+                <p style={{ fontSize: '0.72rem', color: 'var(--color-text-muted)', marginTop: '0.4rem' }}>
+                  Shtrix-kod o'quvchi to'pponcha yordamida to'g'ridan-to'g'ri shu maydonga skanerlashingiz mumkin.
+                </p>
+              </div>
+            </div>
+
+            <div className="modal-footer">
+              <button type="button" className="btn btn-secondary" onClick={() => setActiveModal(null)}>Bekor qilish</button>
+              <button type="submit" className="btn btn-primary">Saqlash</button>
             </div>
           </form>
         </div>
