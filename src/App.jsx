@@ -1911,7 +1911,28 @@ export default function App() {
   };
 
   // --- HISTORICAL TRANSACTIONS INPUT HELPERS ---
-  const histTotalAmount = histItems.reduce((sum, item) => sum + (item.price * item.qty), 0);
+  const histSubtotal = histItems.reduce((sum, item) => sum + (item.price * item.qty), 0);
+
+  const getHistDiscountAmount = () => {
+    const sanitizedVal = histDiscountValue.replace(/[^\d\.,]/g, '');
+    let parsedNum = 0;
+    if (histDiscountType === "amount") {
+      const cleanAmount = sanitizedVal.replace(/[\.,]/g, '');
+      parsedNum = parseFloat(cleanAmount) || 0;
+    } else {
+      const cleanPercent = sanitizedVal.replace(',', '.');
+      parsedNum = parseFloat(cleanPercent) || 0;
+    }
+
+    if (histDiscountType === "percent") {
+      return Math.round(histSubtotal * parsedNum / 100);
+    } else {
+      return parsedNum;
+    }
+  };
+
+  const histDiscountAmount = Math.min(histSubtotal, getHistDiscountAmount());
+  const histTotalAmount = Math.max(0, histSubtotal - histDiscountAmount);
 
   const handleHistMixCashChange = (val) => {
     const cash = Math.min(histTotalAmount, Math.max(0, parseFloat(val) || 0));
@@ -1947,7 +1968,6 @@ export default function App() {
   useEffect(() => {
     if (!histSelectedSku) {
       setHistSelectedPrice(0);
-      setHistDiscountValue("");
       return;
     }
     let foundPrice = 0;
@@ -1958,47 +1978,15 @@ export default function App() {
       }
     });
     setHistSelectedPrice(foundPrice);
-    setHistDiscountValue("");
   }, [histSelectedSku, products]);
 
-  const handleHistDiscountChange = (val, type = histDiscountType) => {
-    // Faqat raqamlar, nuqta va vergullarni qoldiramiz, qolgan hamma narsani (bo'shliqlar, harflar) o'chiramiz
+  const handleHistDiscountChange = (val) => {
     const sanitizedVal = val.replace(/[^\d\.,]/g, '');
     setHistDiscountValue(sanitizedVal);
-
-    if (!histSelectedSku) return;
-
-    let origPrice = 0;
-    products.forEach(p => {
-      const v = p.variants.find(varItem => varItem.sku === histSelectedSku);
-      if (v) {
-        origPrice = v.price;
-      }
-    });
-
-    // Agar so'm bo'lsa va nuqta/vergullar bo'lsa (masalan "10.000" yoki "10,000"), ularni butunlay tozalaymiz
-    // Agar foiz bo'lsa, nuqta/vergul o'nlik kasr bo'lishi mumkin (masalan "12.5")
-    let parsedNum = 0;
-    if (type === "amount") {
-      const cleanAmount = sanitizedVal.replace(/[\.,]/g, '');
-      parsedNum = parseFloat(cleanAmount) || 0;
-    } else {
-      const cleanPercent = sanitizedVal.replace(',', '.');
-      parsedNum = parseFloat(cleanPercent) || 0;
-    }
-
-    if (type === "percent") {
-      const discounted = origPrice - (origPrice * parsedNum / 100);
-      setHistSelectedPrice(Math.max(0, Math.round(discounted)));
-    } else {
-      const discounted = origPrice - parsedNum;
-      setHistSelectedPrice(Math.max(0, Math.round(discounted)));
-    }
   };
 
   const handleHistDiscountTypeChange = (type) => {
     setHistDiscountType(type);
-    handleHistDiscountChange(histDiscountValue, type);
   };
 
   const addHistItem = () => {
@@ -2028,7 +2016,6 @@ export default function App() {
     setHistSelectedSku("");
     setHistSelectedQty(1);
     setHistSelectedPrice(0);
-    setHistDiscountValue("");
   };
 
   const removeHistItem = (sku) => {
@@ -2075,9 +2062,10 @@ export default function App() {
         : histPaymentMethod,
       mixPayDetails: histPaymentMethod === 'Aralash (Mix)' ? { cash: histMixCash, card: histMixCard } : null,
       items: [...histItems],
-      subtotal: parseFloat(histTotalAmount.toFixed(2)),
-      discountPercent: 0,
-      discountAmount: 0,
+      subtotal: parseFloat(histSubtotal.toFixed(2)),
+      discountPercent: histDiscountType === 'percent' ? (parseFloat(histDiscountValue.replace(',', '.')) || 0) : 0,
+      discountSum: histDiscountType === 'amount' ? (parseFloat(histDiscountValue.replace(/[\.,]/g, '')) || 0) : 0,
+      discountAmount: parseFloat(histDiscountAmount.toFixed(2)),
       vatAmount: 0,
       totalAmount: parseFloat(histTotalAmount.toFixed(2)),
       isHistorical: true,
@@ -2288,7 +2276,7 @@ export default function App() {
             const qty = item.qty || 0;
             const itemPrice = price || 0;
             const grossSum = itemPrice * qty;
-            const discPercent = t.discountPercent || 0;
+            const discPercent = t.subtotal > 0 ? ((t.discountAmount || 0) / t.subtotal) * 100 : 0;
             const discSum = grossSum * (discPercent / 100);
             const netSum = grossSum - discSum;
 
@@ -4774,7 +4762,7 @@ service cloud.firestore {
                     </div>
                     {activePOSInvoice.discountAmount > 0 && (
                       <div className="receipt-total-row">
-                        <span>Chegirma ({activePOSInvoice.discountPercent}%):</span>
+                        <span>Chegirma {activePOSInvoice.discountPercent > 0 ? `(${activePOSInvoice.discountPercent}%)` : ''}:</span>
                         <span>-{formatSum(activePOSInvoice.discountAmount)}</span>
                       </div>
                     )}
@@ -5153,87 +5141,6 @@ service cloud.firestore {
                     Qo'shish
                   </button>
                 </div>
-
-                {/* Discount helpers row */}
-                {histSelectedSku && (
-                  <div style={{ display: 'flex', gap: '0.5rem', alignItems: 'center', marginTop: '0.75rem', paddingTop: '0.75rem', borderTop: '1px dashed var(--border-color)' }}>
-                    <span style={{ fontSize: '0.75rem', fontWeight: 600, color: 'var(--color-text-muted)' }}>Chegirma (Discount):</span>
-                    
-                    {/* Toggle between % and sum */}
-                    <div style={{ 
-                      display: 'flex', 
-                      borderRadius: '6px', 
-                      overflow: 'hidden', 
-                      border: '1px solid var(--border-color)', 
-                      height: '32px',
-                      boxSizing: 'border-box',
-                      flex: 'none',
-                      backgroundColor: 'rgba(0,0,0,0.02)'
-                    }}>
-                      <button
-                        type="button"
-                        onClick={() => handleHistDiscountTypeChange("percent")}
-                        style={{
-                          border: 'none',
-                          borderRight: '1px solid var(--border-color)',
-                          padding: '0 0.9rem',
-                          fontSize: '0.8rem',
-                          cursor: 'pointer',
-                          backgroundColor: histDiscountType === 'percent' ? 'var(--color-primary)' : 'transparent',
-                          color: histDiscountType === 'percent' ? '#fff' : 'var(--color-text-muted)',
-                          fontWeight: histDiscountType === 'percent' ? '600' : 'normal',
-                          height: '100%',
-                          transition: 'all 0.15s ease'
-                        }}
-                      >
-                        %
-                      </button>
-                      <button
-                        type="button"
-                        onClick={() => handleHistDiscountTypeChange("amount")}
-                        style={{
-                          border: 'none',
-                          padding: '0 0.9rem',
-                          fontSize: '0.8rem',
-                          cursor: 'pointer',
-                          backgroundColor: histDiscountType === 'amount' ? 'var(--color-primary)' : 'transparent',
-                          color: histDiscountType === 'amount' ? '#fff' : 'var(--color-text-muted)',
-                          fontWeight: histDiscountType === 'amount' ? '600' : 'normal',
-                          height: '100%',
-                          transition: 'all 0.15s ease'
-                        }}
-                      >
-                        so'm
-                      </button>
-                    </div>
-
-                    {/* Discount Input */}
-                    <input
-                      type="text"
-                      className="form-control"
-                      placeholder={histDiscountType === 'percent' ? "10%" : "so'm"}
-                      value={histDiscountValue}
-                      onChange={(e) => handleHistDiscountChange(e.target.value)}
-                      style={{
-                        height: '32px',
-                        boxSizing: 'border-box',
-                        fontSize: '0.8rem',
-                        padding: '0 0.6rem',
-                        borderRadius: '6px',
-                        width: '100px',
-                        flex: 'none'
-                      }}
-                    />
-                    
-                    {/* Helper text showing original price */}
-                    <span style={{ fontSize: '0.7rem', color: 'var(--color-text-muted)', marginLeft: 'auto' }}>
-                      Asl narxi: {formatSum(products.reduce((acc, p) => {
-                        const v = p.variants.find(varItem => varItem.sku === histSelectedSku);
-                        return v ? v.price : acc;
-                      }, 0))}
-                    </span>
-                  </div>
-                )}
               </div>
 
               {/* LIST OF ADDED ITEMS */}
@@ -5298,10 +5205,97 @@ service cloud.firestore {
                 </div>
               </div>
 
-              {/* GRAND TOTAL SUMMARY */}
-              <div style={{ display: 'flex', justifyContent: 'space-between', padding: '0.75rem', backgroundColor: 'rgba(0,0,0,0.02)', borderRadius: '6px', fontWeight: 600, fontSize: '0.9rem' }}>
-                <span>Umumiy Summa:</span>
-                <span style={{ color: 'var(--color-primary)' }}>{formatSum(histTotalAmount)}</span>
+              {/* DISCOUNT AND GRAND TOTAL SUMMARY */}
+              <div style={{ display: 'flex', flexDirection: 'column', gap: '0.6rem', border: '1px solid var(--border-color)', borderRadius: '6px', padding: '0.75rem', backgroundColor: 'rgba(0,0,0,0.01)' }}>
+                
+                {/* General Discount Inputs */}
+                <div style={{ display: 'flex', gap: '0.5rem', alignItems: 'center' }}>
+                  <span style={{ fontSize: '0.78rem', fontWeight: 600, color: 'var(--color-text-muted)' }}>Umumiy chegirma (Total Discount):</span>
+                  
+                  {/* Toggle between % and sum */}
+                  <div style={{ 
+                    display: 'flex', 
+                    borderRadius: '6px', 
+                    overflow: 'hidden', 
+                    border: '1px solid var(--border-color)', 
+                    height: '28px',
+                    boxSizing: 'border-box',
+                    flex: 'none',
+                    backgroundColor: 'rgba(0,0,0,0.02)'
+                  }}>
+                    <button
+                      type="button"
+                      onClick={() => handleHistDiscountTypeChange("percent")}
+                      style={{
+                        border: 'none',
+                        borderRight: '1px solid var(--border-color)',
+                        padding: '0 0.6rem',
+                        fontSize: '0.75rem',
+                        cursor: 'pointer',
+                        backgroundColor: histDiscountType === 'percent' ? 'var(--color-primary)' : 'transparent',
+                        color: histDiscountType === 'percent' ? '#fff' : 'var(--color-text-muted)',
+                        fontWeight: histDiscountType === 'percent' ? '600' : 'normal',
+                        height: '100%',
+                        transition: 'all 0.15s ease'
+                      }}
+                    >
+                      %
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => handleHistDiscountTypeChange("amount")}
+                      style={{
+                        border: 'none',
+                        padding: '0 0.6rem',
+                        fontSize: '0.75rem',
+                        cursor: 'pointer',
+                        backgroundColor: histDiscountType === 'amount' ? 'var(--color-primary)' : 'transparent',
+                        color: histDiscountType === 'amount' ? '#fff' : 'var(--color-text-muted)',
+                        fontWeight: histDiscountType === 'amount' ? '600' : 'normal',
+                        height: '100%',
+                        transition: 'all 0.15s ease'
+                      }}
+                    >
+                      so'm
+                    </button>
+                  </div>
+
+                  {/* Discount Input */}
+                  <input
+                    type="text"
+                    className="form-control"
+                    placeholder={histDiscountType === 'percent' ? "10%" : "so'm"}
+                    value={histDiscountValue}
+                    onChange={(e) => handleHistDiscountChange(e.target.value)}
+                    style={{
+                      height: '28px',
+                      boxSizing: 'border-box',
+                      fontSize: '0.8rem',
+                      padding: '0 0.5rem',
+                      borderRadius: '6px',
+                      width: '100px',
+                      flex: 'none'
+                    }}
+                  />
+                </div>
+
+                <div style={{ borderTop: '1px solid var(--border-color)', marginTop: '0.4rem', paddingTop: '0.4rem', display: 'flex', flexDirection: 'column', gap: '0.3rem', fontSize: '0.8rem' }}>
+                  <div style={{ display: 'flex', justifyContent: 'space-between', color: 'var(--color-text-muted)' }}>
+                    <span>Orta jami (Subtotal):</span>
+                    <span>{formatSum(histSubtotal)}</span>
+                  </div>
+                  {histDiscountAmount > 0 && (
+                    <div style={{ display: 'flex', justifyContent: 'space-between', color: '#EF4444' }}>
+                      <span>Chegirma (Discount):</span>
+                      <span>-{formatSum(histDiscountAmount)}</span>
+                    </div>
+                  )}
+                  <div style={{ display: 'flex', justifyContent: 'space-between', fontWeight: 600, fontSize: '0.9rem', borderTop: '1px dashed var(--border-color)', paddingTop: '0.3rem', marginTop: '0.2rem' }}>
+                    <span>Umumiy Summa:</span>
+                    <span style={{ color: 'var(--color-primary)' }}>{formatSum(histTotalAmount)}</span>
+                  </div>
+                </div>
+
               </div>
 
               <p style={{ color: 'var(--color-text-muted)', fontSize: '0.75rem', lineHeight: 1.4, margin: 0 }}>
