@@ -541,6 +541,9 @@ body {
 }
 
 .custom-table th {
+  position: sticky;
+  top: 0;
+  z-index: 10;
   background: linear-gradient(to bottom, var(--bg-tertiary), var(--bg-primary));
   color: var(--color-text-muted);
   font-weight: 600;
@@ -2101,6 +2104,9 @@ select:focus-visible {
 }
 
 .custom-table th {
+  position: sticky;
+  top: 0;
+  z-index: 10;
   background: var(--bg-primary);
   color: var(--color-text-muted);
   border-bottom: 1px solid var(--border-color);
