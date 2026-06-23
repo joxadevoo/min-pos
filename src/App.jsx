@@ -714,40 +714,28 @@ export default function App() {
 
   // --- Auto Save to LocalStorage (Fallback backup) ---
   useEffect(() => {
-    if (!firebaseActive) {
-      localStorage.setItem('beauty_products', JSON.stringify(products));
-    }
-  }, [products, firebaseActive]);
+    localStorage.setItem('beauty_products', JSON.stringify(products));
+  }, [products]);
 
   useEffect(() => {
-    if (!firebaseActive) {
-      localStorage.setItem('beauty_raw_materials', JSON.stringify(rawMaterials));
-    }
-  }, [rawMaterials, firebaseActive]);
+    localStorage.setItem('beauty_raw_materials', JSON.stringify(rawMaterials));
+  }, [rawMaterials]);
 
   useEffect(() => {
-    if (!firebaseActive) {
-      localStorage.setItem('beauty_bundles', JSON.stringify(bundles));
-    }
-  }, [bundles, firebaseActive]);
+    localStorage.setItem('beauty_bundles', JSON.stringify(bundles));
+  }, [bundles]);
 
   useEffect(() => {
-    if (!firebaseActive) {
-      localStorage.setItem('beauty_channels', JSON.stringify(channels));
-    }
-  }, [channels, firebaseActive]);
+    localStorage.setItem('beauty_channels', JSON.stringify(channels));
+  }, [channels]);
 
   useEffect(() => {
-    if (!firebaseActive) {
-      localStorage.setItem('beauty_logs', JSON.stringify(logs));
-    }
-  }, [logs, firebaseActive]);
+    localStorage.setItem('beauty_logs', JSON.stringify(logs));
+  }, [logs]);
 
   useEffect(() => {
-    if (!firebaseActive) {
-      localStorage.setItem('beauty_transactions', JSON.stringify(transactions));
-    }
-  }, [transactions, firebaseActive]);
+    localStorage.setItem('beauty_transactions', JSON.stringify(transactions));
+  }, [transactions]);
 
   // --- DELETE PRODUCT & TRANSACTION ACTIONS ---
   const handleDeleteProduct = async (productId, productName) => {
