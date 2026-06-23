@@ -125,6 +125,47 @@ export default function App() {
 
   const activeTransactions = transactions.filter(t => t.status !== 'cancelled');
 
+  // --- Transaction Filter States ---
+  const [trxSearchQuery, setTrxSearchQuery] = useState('');
+  const [trxStartDate, setTrxStartDate] = useState('');
+  const [trxEndDate, setTrxEndDate] = useState('');
+  const [trxFilterPayment, setTrxFilterPayment] = useState('All');
+  const [trxFilterStatus, setTrxFilterStatus] = useState('All');
+
+  const filteredTransactions = transactions.filter(t => {
+    // 1. Search filter (ID, Customer name, Phone)
+    const matchesSearch = !trxSearchQuery ||
+      t.id.toLowerCase().includes(trxSearchQuery.toLowerCase()) ||
+      t.customerName.toLowerCase().includes(trxSearchQuery.toLowerCase()) ||
+      t.customerPhone.toLowerCase().includes(trxSearchQuery.toLowerCase());
+      
+    // 2. Date filter (t.date format is YYYY-MM-DD)
+    const matchesStartDate = !trxStartDate || t.date >= trxStartDate;
+    const matchesEndDate = !trxEndDate || t.date <= trxEndDate;
+    
+    // 3. Payment Method filter
+    let matchesPayment = true;
+    if (trxFilterPayment !== 'All') {
+      if (trxFilterPayment === 'Aralash') {
+        matchesPayment = t.paymentMethod.toLowerCase().includes('aralash');
+      } else {
+        matchesPayment = t.paymentMethod.toLowerCase().includes(trxFilterPayment.toLowerCase());
+      }
+    }
+    
+    // 4. Status filter
+    let matchesStatus = true;
+    if (trxFilterStatus === 'active') {
+      matchesStatus = t.status !== 'cancelled';
+    } else if (trxFilterStatus === 'cancelled') {
+      matchesStatus = t.status === 'cancelled';
+    }
+    
+    return matchesSearch && matchesStartDate && matchesEndDate && matchesPayment && matchesStatus;
+  });
+
+  const filteredActiveTransactions = filteredTransactions.filter(t => t.status !== 'cancelled');
+
   const [cart, setCart] = useState(() => {
     const saved = localStorage.getItem('beauty_cart');
     return saved ? JSON.parse(saved) : [];
@@ -206,6 +247,7 @@ export default function App() {
   const [mixPayCash, setMixPayCash] = useState(0);
   const [mixPayCard, setMixPayCard] = useState(0);
   const [customDiscount, setCustomDiscount] = useState(0);
+  const [customDiscountSum, setCustomDiscountSum] = useState(0);
 
   // Scanner States
   const [scannedInput, setScannedInput] = useState('');
@@ -221,6 +263,18 @@ export default function App() {
   const [cancellingTrx, setCancellingTrx] = useState(null);
   const [activePOSInvoice, setActivePOSInvoice] = useState(null);
 
+  // --- Lock background scroll when modal is active ---
+  useEffect(() => {
+    if (activeModal || isCameraScannerOpen) {
+      document.body.style.overflow = 'hidden';
+    } else {
+      document.body.style.overflow = '';
+    }
+    return () => {
+      document.body.style.overflow = '';
+    };
+  }, [activeModal, isCameraScannerOpen]);
+
   // --- Historical Transactions Manual Entry States ---
   const [histDate, setHistDate] = useState(() => new Date().toLocaleDateString('en-CA', { timeZone: 'Asia/Tashkent' }));
   const [histTime, setHistTime] = useState("12:00");
@@ -233,6 +287,8 @@ export default function App() {
   const [histSelectedSku, setHistSelectedSku] = useState("");
   const [histSelectedQty, setHistSelectedQty] = useState(1);
   const [histSelectedPrice, setHistSelectedPrice] = useState(0);
+  const [histDiscountType, setHistDiscountType] = useState("percent"); // "percent" or "amount"
+  const [histDiscountValue, setHistDiscountValue] = useState("");
 
   // --- Edit Transaction States ---
   const [editingTrx, setEditingTrx] = useState(null);
@@ -538,23 +594,16 @@ export default function App() {
       try {
         setFirebaseLoading(true);
 
-        // 1. Versiyani tekshir — eski mock data bo'lsa Firestoredan ham tozala
-        const versionRef = doc(db, 'config', 'version');
-        const versionSnap = await getDoc(versionRef);
-        const storedVersion = versionSnap.exists() ? versionSnap.data().v : null;
-
-        if (storedVersion !== DATA_VERSION) {
-          console.log('Firestore versiyasi eski. Tozalanmoqda va qayta yuklanmoqda...');
-          // Eski mahsulotlarni o'chir
-          const oldProducts = await getDocs(collection(db, 'products'));
+        // 1. Versiyani tekshirish o'rniga faqat agar Firestore bo'sh bo'lsa boshlang'ich ma'lumotlarni yuklaymiz
+        const oldProducts = await getDocs(collection(db, 'products'));
+        if (oldProducts.empty) {
+          console.log('Firestore bo\'sh. Boshlang\'ich mahsulotlar yuklanmoqda...');
+          const versionRef = doc(db, 'config', 'version');
           const wipeBatch = writeBatch(db);
-          oldProducts.forEach(d => wipeBatch.delete(doc(db, 'products', d.id)));
-          // Yangi Vidalita mahsulotlarini yoz
           initialProducts.forEach(p => wipeBatch.set(doc(db, 'products', p.id), p));
-          // Versiyani saqlash
           wipeBatch.set(versionRef, { v: DATA_VERSION });
           await wipeBatch.commit();
-          console.log('Firestore qayta yuklandi:', initialProducts.length, 'mahsulot.');
+          console.log('Firestore boshlang\'ich mahsulotlar yuklandi:', initialProducts.length, 'mahsulot.');
         }
 
         // 2. Real-time listener larni ulash
@@ -1199,6 +1248,7 @@ export default function App() {
         sku: variant.sku,
         name: `${product.name} - ${variant.name}`,
         price: variant.price,
+        originalPrice: variant.price,
         qty: 1,
         maxStock: variantStock
       }]);
@@ -1340,6 +1390,12 @@ export default function App() {
     setCart(prev => prev.map(item => item.sku === sku ? { ...item, qty: newQty } : item));
   };
 
+  const updateCartItemPrice = (sku, newPrice) => {
+    setCart(prev => prev.map(item => 
+      item.sku === sku ? { ...item, price: newPrice } : item
+    ));
+  };
+
   const removeFromCart = (sku) => {
     setCart(prev => prev.filter(item => item.sku !== sku));
     showToast("Savatdan o'chirildi", "Mahsulot savatdan olib tashlandi.", "info");
@@ -1347,7 +1403,7 @@ export default function App() {
 
   // Calculate POS totals
   const subtotal = cart.reduce((sum, item) => sum + (item.price * item.qty), 0);
-  const discountAmount = subtotal * (customDiscount / 100);
+  const discountAmount = Math.min(subtotal, (subtotal * (customDiscount / 100)) + customDiscountSum);
   const totalAmount = subtotal - discountAmount;
 
   // --- Mixed Payment Handlers & Sync ---
@@ -1416,6 +1472,7 @@ export default function App() {
       items: [...cart],
       subtotal: parseFloat(subtotal.toFixed(2)),
       discountPercent: customDiscount,
+      discountSum: customDiscountSum,
       discountAmount: parseFloat(discountAmount.toFixed(2)),
       vatAmount: 0,
       totalAmount: parseFloat(totalAmount.toFixed(2)),
@@ -1455,6 +1512,7 @@ export default function App() {
         setCart([]);
         setSelectedCustomer({ name: '', phone: '' });
         setCustomDiscount(0);
+        setCustomDiscountSum(0);
         setActivePOSInvoice(newTrx);
         showToast("Savdo muvaffaqiyatli", `Faktura ${newTrxId} saqlandi va Cloud-ga sinxronlandi.`, "success");
       } catch (err) {
@@ -1466,6 +1524,7 @@ export default function App() {
         setCart([]);
         setSelectedCustomer({ name: '', phone: '' });
         setCustomDiscount(0);
+        setCustomDiscountSum(0);
         
         addSystemLog(
           "Sotuv (Offline)",
@@ -1886,7 +1945,11 @@ export default function App() {
 
   // When selected SKU changes, auto-set default price
   useEffect(() => {
-    if (!histSelectedSku) return;
+    if (!histSelectedSku) {
+      setHistSelectedPrice(0);
+      setHistDiscountValue("");
+      return;
+    }
     let foundPrice = 0;
     products.forEach(p => {
       const v = p.variants.find(varItem => varItem.sku === histSelectedSku);
@@ -1895,7 +1958,48 @@ export default function App() {
       }
     });
     setHistSelectedPrice(foundPrice);
+    setHistDiscountValue("");
   }, [histSelectedSku, products]);
+
+  const handleHistDiscountChange = (val, type = histDiscountType) => {
+    // Faqat raqamlar, nuqta va vergullarni qoldiramiz, qolgan hamma narsani (bo'shliqlar, harflar) o'chiramiz
+    const sanitizedVal = val.replace(/[^\d\.,]/g, '');
+    setHistDiscountValue(sanitizedVal);
+
+    if (!histSelectedSku) return;
+
+    let origPrice = 0;
+    products.forEach(p => {
+      const v = p.variants.find(varItem => varItem.sku === histSelectedSku);
+      if (v) {
+        origPrice = v.price;
+      }
+    });
+
+    // Agar so'm bo'lsa va nuqta/vergullar bo'lsa (masalan "10.000" yoki "10,000"), ularni butunlay tozalaymiz
+    // Agar foiz bo'lsa, nuqta/vergul o'nlik kasr bo'lishi mumkin (masalan "12.5")
+    let parsedNum = 0;
+    if (type === "amount") {
+      const cleanAmount = sanitizedVal.replace(/[\.,]/g, '');
+      parsedNum = parseFloat(cleanAmount) || 0;
+    } else {
+      const cleanPercent = sanitizedVal.replace(',', '.');
+      parsedNum = parseFloat(cleanPercent) || 0;
+    }
+
+    if (type === "percent") {
+      const discounted = origPrice - (origPrice * parsedNum / 100);
+      setHistSelectedPrice(Math.max(0, Math.round(discounted)));
+    } else {
+      const discounted = origPrice - parsedNum;
+      setHistSelectedPrice(Math.max(0, Math.round(discounted)));
+    }
+  };
+
+  const handleHistDiscountTypeChange = (type) => {
+    setHistDiscountType(type);
+    handleHistDiscountChange(histDiscountValue, type);
+  };
 
   const addHistItem = () => {
     if (!histSelectedSku) return;
@@ -1924,6 +2028,7 @@ export default function App() {
     setHistSelectedSku("");
     setHistSelectedQty(1);
     setHistSelectedPrice(0);
+    setHistDiscountValue("");
   };
 
   const removeHistItem = (sku) => {
@@ -1942,6 +2047,8 @@ export default function App() {
     setHistSelectedSku("");
     setHistSelectedQty(1);
     setHistSelectedPrice(0);
+    setHistDiscountValue("");
+    setHistDiscountType("percent");
   };
 
   const submitHistoricalTransaction = async (e) => {
@@ -2969,8 +3076,32 @@ service cloud.firestore {
                   ) : (
                     cart.map(item => (
                       <div key={item.sku} className="pos-cart-item">
-                        <div className="cart-item-info">
+                        <div className="cart-item-info" style={{ display: 'flex', flexDirection: 'column', gap: '4px' }}>
                           <span className="cart-item-name">{item.name}</span>
+                          
+                          {/* Editable Unit Price */}
+                          <div style={{ display: 'flex', alignItems: 'center', gap: '4px' }}>
+                            <span style={{ fontSize: '0.78rem', color: 'var(--color-text-muted)' }}>Narxi:</span>
+                            <input
+                              type="text"
+                              className="form-control"
+                              style={{ 
+                                padding: '2px 6px', 
+                                fontSize: '0.8rem', 
+                                width: '80px', 
+                                height: '24px', 
+                                minHeight: 'unset',
+                                textAlign: 'right',
+                                boxSizing: 'border-box'
+                              }}
+                              value={item.price}
+                              onChange={(e) => {
+                                const val = e.target.value.replace(/[^\d]/g, '');
+                                updateCartItemPrice(item.sku, parseFloat(val) || 0);
+                              }}
+                            />
+                            <span style={{ fontSize: '0.78rem', color: 'var(--color-text-muted)' }}>so'm</span>
+                          </div>
                         </div>
 
                         <div className="cart-item-controls">
@@ -3090,18 +3221,39 @@ service cloud.firestore {
 
                   {/* Quick Discount Preset Chips and Custom Input */}
                   <div className="form-group" style={{ marginBottom: '0.5rem' }}>
-                    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '0.25rem' }}>
-                      <label style={{ fontSize: '0.75rem', fontWeight: 600 }}>Chegirma % (Discount)</label>
-                      <input
-                        type="number"
-                        min="0"
-                        max="100"
-                        className="form-control"
-                        style={{ padding: '0.2rem 0.4rem', fontSize: '0.8rem', width: '50px', textAlign: 'center', height: '24px' }}
-                        value={customDiscount}
-                        onChange={(e) => setCustomDiscount(Math.min(100, Math.max(0, parseInt(e.target.value, 10) || 0)))}
-                      />
+                    {/* Row with Percent and Sum Discounts */}
+                    <div style={{ display: 'flex', gap: '0.5rem', marginBottom: '0.35rem' }}>
+                      {/* Percent Discount */}
+                      <div style={{ flex: 1, display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: '4px' }}>
+                        <label style={{ fontSize: '0.72rem', fontWeight: 600, whiteSpace: 'nowrap' }}>Chegirma %</label>
+                        <input
+                          type="number"
+                          min="0"
+                          max="100"
+                          className="form-control"
+                          style={{ padding: '0.2rem 0.4rem', fontSize: '0.8rem', width: '45px', textAlign: 'center', height: '24px' }}
+                          value={customDiscount}
+                          onChange={(e) => setCustomDiscount(Math.min(100, Math.max(0, parseInt(e.target.value, 10) || 0)))}
+                        />
+                      </div>
+                      
+                      {/* Sum Discount */}
+                      <div style={{ flex: 1.2, display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: '4px' }}>
+                        <label style={{ fontSize: '0.72rem', fontWeight: 600, whiteSpace: 'nowrap' }}>Chegirma (so'm)</label>
+                        <input
+                          type="text"
+                          className="form-control"
+                          placeholder="0"
+                          style={{ padding: '0.2rem 0.4rem', fontSize: '0.8rem', width: '80px', textAlign: 'right', height: '24px', boxSizing: 'border-box' }}
+                          value={customDiscountSum === 0 ? "" : customDiscountSum}
+                          onChange={(e) => {
+                            const val = e.target.value.replace(/[^\d]/g, '');
+                            setCustomDiscountSum(parseInt(val, 10) || 0);
+                          }}
+                        />
+                      </div>
                     </div>
+
                     <div className="discount-chips-row">
                       {[0, 5, 10, 15, 20].map(pct => (
                         <button
@@ -3123,7 +3275,14 @@ service cloud.firestore {
                     </div>
                     {discountAmount > 0 && (
                       <div className="pos-summary-row" style={{ color: 'var(--color-warning)' }}>
-                        <span>Chegirma ({customDiscount}%):</span>
+                        <span>
+                          Chegirma {customDiscount > 0 && customDiscountSum > 0 
+                            ? `(${customDiscount}% + ${formatSum(customDiscountSum)})` 
+                            : customDiscount > 0 
+                              ? `(${customDiscount}%)` 
+                              : `(${formatSum(customDiscountSum)})`
+                          }:
+                        </span>
                         <span>-{formatSum(discountAmount)}</span>
                       </div>
                     )}
@@ -3183,14 +3342,14 @@ service cloud.firestore {
                     <TrendingUp size={20} />
                   </div>
                   <div className="kpi-info">
-                    <span className="kpi-title">Bugungi umumiy savdo</span>
+                    <span className="kpi-title">Filtrlangan umumiy savdo</span>
                     <span className="kpi-value">
-                      {formatSum(activeTransactions.reduce((sum, t) => sum + t.totalAmount, 0))}
+                      {formatSum(filteredActiveTransactions.reduce((sum, t) => sum + t.totalAmount, 0))}
                     </span>
                   </div>
                 </div>
                 <div className="kpi-trend up">
-                  <span>Fakturalar soni: {activeTransactions.length} ta</span>
+                  <span>Fakturalar soni: {filteredActiveTransactions.length} ta</span>
                 </div>
               </div>
 
@@ -3202,12 +3361,12 @@ service cloud.firestore {
                   <div className="kpi-info">
                     <span className="kpi-title">Sotilgan tovarlar</span>
                     <span className="kpi-value">
-                      {activeTransactions.reduce((sum, t) => sum + t.items.reduce((s, i) => s + i.qty, 0), 0)} dona
+                      {filteredActiveTransactions.reduce((sum, t) => sum + t.items.reduce((s, i) => s + i.qty, 0), 0)} dona
                     </span>
                   </div>
                 </div>
                 <div className="kpi-trend up">
-                  <span>O'rtacha chek: {formatSum(activeTransactions.reduce((sum, t) => sum + t.totalAmount, 0) / (activeTransactions.length || 1))}</span>
+                  <span>O'rtacha chek: {formatSum(filteredActiveTransactions.reduce((sum, t) => sum + t.totalAmount, 0) / (filteredActiveTransactions.length || 1))}</span>
                 </div>
               </div>
 
@@ -3219,12 +3378,97 @@ service cloud.firestore {
                   <div className="kpi-info">
                     <span className="kpi-title">Mijozlar faolligi</span>
                     <span className="kpi-value">
-                      {new Set(activeTransactions.map(t => t.customerPhone)).size} ta
+                      {new Set(filteredActiveTransactions.map(t => t.customerPhone)).size} ta
                     </span>
                   </div>
                 </div>
                 <div className="kpi-trend up">
                   <span>Noyob xaridorlar</span>
+                </div>
+              </div>
+            </div>
+
+            {/* FILTER PANEL */}
+            <div className="panel" style={{ marginTop: '1rem', padding: '1rem' }}>
+              <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(160px, 1fr))', gap: '1rem', alignItems: 'end' }}>
+                <div className="form-group" style={{ marginBottom: 0 }}>
+                  <label style={{ fontSize: '0.75rem', fontWeight: 600, color: 'var(--color-text-muted)', marginBottom: '4px', display: 'block' }}>Qidiruv</label>
+                  <input
+                    type="text"
+                    className="form-control"
+                    style={{ padding: '0.4rem 0.6rem', fontSize: '0.8rem', minHeight: 'unset', height: '34px' }}
+                    placeholder="ID, mijoz ismi, tel..."
+                    value={trxSearchQuery}
+                    onChange={(e) => setTrxSearchQuery(e.target.value)}
+                  />
+                </div>
+
+                <div className="form-group" style={{ marginBottom: 0 }}>
+                  <label style={{ fontSize: '0.75rem', fontWeight: 600, color: 'var(--color-text-muted)', marginBottom: '4px', display: 'block' }}>Boshlanish sanasi</label>
+                  <input
+                    type="date"
+                    className="form-control"
+                    style={{ padding: '0.4rem 0.6rem', fontSize: '0.8rem', minHeight: 'unset', height: '34px' }}
+                    value={trxStartDate}
+                    onChange={(e) => setTrxStartDate(e.target.value)}
+                  />
+                </div>
+
+                <div className="form-group" style={{ marginBottom: 0 }}>
+                  <label style={{ fontSize: '0.75rem', fontWeight: 600, color: 'var(--color-text-muted)', marginBottom: '4px', display: 'block' }}>Tugash sanasi</label>
+                  <input
+                    type="date"
+                    className="form-control"
+                    style={{ padding: '0.4rem 0.6rem', fontSize: '0.8rem', minHeight: 'unset', height: '34px' }}
+                    value={trxEndDate}
+                    onChange={(e) => setTrxEndDate(e.target.value)}
+                  />
+                </div>
+
+                <div className="form-group" style={{ marginBottom: 0 }}>
+                  <label style={{ fontSize: '0.75rem', fontWeight: 600, color: 'var(--color-text-muted)', marginBottom: '4px', display: 'block' }}>To'lov turi</label>
+                  <select
+                    className="form-control"
+                    style={{ padding: '0.4rem 0.6rem', fontSize: '0.8rem', minHeight: 'unset', height: '34px' }}
+                    value={trxFilterPayment}
+                    onChange={(e) => setTrxFilterPayment(e.target.value)}
+                  >
+                    <option value="All">Barchasi</option>
+                    <option value="Naqd">Naqd</option>
+                    <option value="Karta">Karta</option>
+                    <option value="Aralash">Aralash (Mix)</option>
+                  </select>
+                </div>
+
+                <div className="form-group" style={{ marginBottom: 0 }}>
+                  <label style={{ fontSize: '0.75rem', fontWeight: 600, color: 'var(--color-text-muted)', marginBottom: '4px', display: 'block' }}>Holati</label>
+                  <select
+                    className="form-control"
+                    style={{ padding: '0.4rem 0.6rem', fontSize: '0.8rem', minHeight: 'unset', height: '34px' }}
+                    value={trxFilterStatus}
+                    onChange={(e) => setTrxFilterStatus(e.target.value)}
+                  >
+                    <option value="All">Barchasi</option>
+                    <option value="active">Faol</option>
+                    <option value="cancelled">Bekor qilingan</option>
+                  </select>
+                </div>
+
+                <div>
+                  <button
+                    type="button"
+                    className="btn btn-secondary"
+                    style={{ padding: '0.4rem 0.8rem', fontSize: '0.8rem', height: '34px', width: '100%' }}
+                    onClick={() => {
+                      setTrxSearchQuery('');
+                      setTrxStartDate('');
+                      setTrxEndDate('');
+                      setTrxFilterPayment('All');
+                      setTrxFilterStatus('All');
+                    }}
+                  >
+                    Filtrni tozalash
+                  </button>
                 </div>
               </div>
             </div>
@@ -3249,22 +3493,26 @@ service cloud.firestore {
                       </tr>
                     </thead>
                     <tbody>
-                      {transactions.length === 0 ? (
+                      {filteredTransactions.length === 0 ? (
                         <tr>
                           <td colSpan="7" style={{ textAlign: 'center', padding: '3rem', color: 'var(--color-text-muted)' }}>
-                            Faktura topilmadi. POS orqali sotuvni amalga oshiring.
+                            {transactions.length === 0 
+                              ? "Faktura topilmadi. POS orqali sotuvni amalga oshiring."
+                              : "Filtrlangan shartlar bo'yicha faktura topilmadi."}
                           </td>
                         </tr>
                       ) : (
-                        transactions.map(t => {
+                        filteredTransactions.map(t => {
                           const totalItems = t.items.reduce((sum, item) => sum + item.qty, 0);
                           const isCancelled = t.status === 'cancelled';
+                          const hasEditedPrice = t.items && t.items.some(item => item.originalPrice !== undefined && item.originalPrice !== item.price);
                           return (
                             <tr key={t.id} style={isCancelled ? { opacity: 0.6, backgroundColor: 'rgba(239, 68, 68, 0.05)' } : {}}>
                               <td style={{ fontWeight: 600, fontFamily: 'monospace' }}>
                                 {t.id}
                                 {isCancelled && <span className="badge badge-danger" style={{ marginLeft: '6px', fontSize: '0.65rem' }}>Bekor qilingan</span>}
                                 {t.isHistorical && <span className="badge badge-info" style={{ marginLeft: '6px', fontSize: '0.65rem', backgroundColor: 'rgba(59, 130, 246, 0.1)', color: '#3B82F6' }}>Tarixiy</span>}
+                                {hasEditedPrice && <span className="badge badge-warning" style={{ marginLeft: '6px', fontSize: '0.65rem' }}>O'zgartirilgan narx</span>}
                               </td>
                               <td>{t.date} | {t.time}</td>
                               <td>
@@ -4379,30 +4627,38 @@ service cloud.firestore {
                               </td>
                             </tr>
                           ) : (
-                            repTransactions.map((t) => (
-                              <tr key={t.id}>
-                                <td style={{ padding: '0.75rem 1rem', fontWeight: 600 }}>{t.id}</td>
-                                <td style={{ padding: '0.75rem 1rem' }}>{t.date} {t.time}</td>
-                                <td style={{ padding: '0.75rem 1rem' }}>
-                                  <div style={{ fontWeight: 500 }}>{t.customerName}</div>
-                                  <div style={{ fontSize: '0.75rem', color: 'var(--color-text-light)' }}>{t.customerPhone}</div>
-                                </td>
-                                <td style={{ padding: '0.75rem 1rem' }}>
-                                  <span className="badge badge-info" style={{ fontSize: '0.75rem' }}>{t.paymentMethod}</span>
-                                </td>
-                                <td style={{ padding: '0.75rem 1rem', textAlign: 'right', fontWeight: 600 }}>{formatSum(t.totalAmount)}</td>
-                                <td className="no-print" style={{ padding: '0.75rem 1rem', textAlign: 'center' }}>
-                                  <button
-                                    type="button"
-                                    className="btn btn-secondary"
-                                    style={{ padding: '0.25rem 0.5rem', fontSize: '0.75rem' }}
-                                    onClick={() => setActivePOSInvoice(t)}
-                                  >
-                                    Ko'rish (Receipt)
-                                  </button>
-                                </td>
-                              </tr>
-                            ))
+                            repTransactions.map((t) => {
+                              const hasEditedPrice = t.items && t.items.some(item => item.originalPrice !== undefined && item.originalPrice !== item.price);
+                              return (
+                                <tr key={t.id}>
+                                  <td style={{ padding: '0.75rem 1rem', fontWeight: 600 }}>
+                                    {t.id}
+                                    {hasEditedPrice && (
+                                      <span className="badge badge-warning" style={{ marginLeft: '6px', fontSize: '0.65rem' }}>O'zgartirilgan narx</span>
+                                    )}
+                                  </td>
+                                  <td style={{ padding: '0.75rem 1rem' }}>{t.date} {t.time}</td>
+                                  <td style={{ padding: '0.75rem 1rem' }}>
+                                    <div style={{ fontWeight: 500 }}>{t.customerName}</div>
+                                    <div style={{ fontSize: '0.75rem', color: 'var(--color-text-light)' }}>{t.customerPhone}</div>
+                                  </td>
+                                  <td style={{ padding: '0.75rem 1rem' }}>
+                                    <span className="badge badge-info" style={{ fontSize: '0.75rem' }}>{t.paymentMethod}</span>
+                                  </td>
+                                  <td style={{ padding: '0.75rem 1rem', textAlign: 'right', fontWeight: 600 }}>{formatSum(t.totalAmount)}</td>
+                                  <td className="no-print" style={{ padding: '0.75rem 1rem', textAlign: 'center' }}>
+                                    <button
+                                      type="button"
+                                      className="btn btn-secondary"
+                                      style={{ padding: '0.25rem 0.5rem', fontSize: '0.75rem' }}
+                                      onClick={() => setActivePOSInvoice(t)}
+                                    >
+                                      Ko'rish (Receipt)
+                                    </button>
+                                  </td>
+                                </tr>
+                              );
+                            })
                           )}
                         </tbody>
                       </table>
@@ -4471,18 +4727,32 @@ service cloud.firestore {
                       </tr>
                     </thead>
                     <tbody>
-                      {activePOSInvoice.items.map((item, idx) => (
-                        <tr key={idx}>
-                          <td>
-                            <div>{item.name.split(' - ')[0]}</div>
-                            <span style={{ fontSize: '0.7rem', color: '#555' }}>
-                              Variant: {item.name.split(' - ')[1] || 'Oddiy'}
-                            </span>
-                          </td>
-                          <td style={{ textAlign: 'center' }}>{item.qty}</td>
-                          <td style={{ textAlign: 'right' }}>{formatSum(item.price * item.qty)}</td>
-                        </tr>
-                      ))}
+                      {activePOSInvoice.items.map((item, idx) => {
+                        const isPriceChanged = item.originalPrice !== undefined && item.originalPrice !== item.price;
+                        return (
+                          <tr key={idx}>
+                            <td>
+                              <div>{item.name.split(' - ')[0]}</div>
+                              <div style={{ display: 'flex', flexDirection: 'column', gap: '2px', marginTop: '2px' }}>
+                                <span style={{ fontSize: '0.7rem', color: '#555' }}>
+                                  Variant: {item.name.split(' - ')[1] || 'Oddiy'}
+                                </span>
+                                {isPriceChanged ? (
+                                  <span style={{ fontSize: '0.68rem', color: '#D97706', fontWeight: 500 }}>
+                                    Asl narxi: <span style={{ textDecoration: 'line-through', opacity: 0.7 }}>{formatSum(item.originalPrice)}</span> | Yangi: {formatSum(item.price)}
+                                  </span>
+                                ) : (
+                                  <span style={{ fontSize: '0.68rem', color: '#777' }}>
+                                    Narxi: {formatSum(item.price)}
+                                  </span>
+                                )}
+                              </div>
+                            </td>
+                            <td style={{ textAlign: 'center' }}>{item.qty}</td>
+                            <td style={{ textAlign: 'right' }}>{formatSum(item.price * item.qty)}</td>
+                          </tr>
+                        );
+                      })}
                     </tbody>
                   </table>
 
@@ -4874,14 +5144,109 @@ service cloud.firestore {
                     Qo'shish
                   </button>
                 </div>
+
+                {/* Discount helpers row */}
+                {histSelectedSku && (
+                  <div style={{ display: 'flex', gap: '0.5rem', alignItems: 'center', marginTop: '0.75rem', paddingTop: '0.75rem', borderTop: '1px dashed var(--border-color)' }}>
+                    <span style={{ fontSize: '0.75rem', fontWeight: 600, color: 'var(--color-text-muted)' }}>Chegirma (Discount):</span>
+                    
+                    {/* Toggle between % and sum */}
+                    <div style={{ 
+                      display: 'flex', 
+                      borderRadius: '6px', 
+                      overflow: 'hidden', 
+                      border: '1px solid var(--border-color)', 
+                      height: '32px',
+                      boxSizing: 'border-box',
+                      flex: 'none',
+                      backgroundColor: 'rgba(0,0,0,0.02)'
+                    }}>
+                      <button
+                        type="button"
+                        onClick={() => handleHistDiscountTypeChange("percent")}
+                        style={{
+                          border: 'none',
+                          borderRight: '1px solid var(--border-color)',
+                          padding: '0 0.9rem',
+                          fontSize: '0.8rem',
+                          cursor: 'pointer',
+                          backgroundColor: histDiscountType === 'percent' ? 'var(--color-primary)' : 'transparent',
+                          color: histDiscountType === 'percent' ? '#fff' : 'var(--color-text-muted)',
+                          fontWeight: histDiscountType === 'percent' ? '600' : 'normal',
+                          height: '100%',
+                          transition: 'all 0.15s ease'
+                        }}
+                      >
+                        %
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() => handleHistDiscountTypeChange("amount")}
+                        style={{
+                          border: 'none',
+                          padding: '0 0.9rem',
+                          fontSize: '0.8rem',
+                          cursor: 'pointer',
+                          backgroundColor: histDiscountType === 'amount' ? 'var(--color-primary)' : 'transparent',
+                          color: histDiscountType === 'amount' ? '#fff' : 'var(--color-text-muted)',
+                          fontWeight: histDiscountType === 'amount' ? '600' : 'normal',
+                          height: '100%',
+                          transition: 'all 0.15s ease'
+                        }}
+                      >
+                        so'm
+                      </button>
+                    </div>
+
+                    {/* Discount Input */}
+                    <input
+                      type="text"
+                      className="form-control"
+                      placeholder={histDiscountType === 'percent' ? "10%" : "so'm"}
+                      value={histDiscountValue}
+                      onChange={(e) => handleHistDiscountChange(e.target.value)}
+                      style={{
+                        height: '32px',
+                        boxSizing: 'border-box',
+                        fontSize: '0.8rem',
+                        padding: '0 0.6rem',
+                        borderRadius: '6px',
+                        width: '100px',
+                        flex: 'none'
+                      }}
+                    />
+                    
+                    {/* Helper text showing original price */}
+                    <span style={{ fontSize: '0.7rem', color: 'var(--color-text-muted)', marginLeft: 'auto' }}>
+                      Asl narxi: {formatSum(products.reduce((acc, p) => {
+                        const v = p.variants.find(varItem => varItem.sku === histSelectedSku);
+                        return v ? v.price : acc;
+                      }, 0))}
+                    </span>
+                  </div>
+                )}
               </div>
 
               {/* LIST OF ADDED ITEMS */}
-              <div style={{ border: '1px solid var(--color-border)', borderRadius: '6px', overflow: 'hidden' }}>
-                <div style={{ padding: '0.5rem 0.75rem', backgroundColor: 'rgba(0,0,0,0.03)', fontSize: '0.8rem', fontWeight: 600, borderBottom: '1px solid var(--color-border)' }}>
+              <div style={{ border: '1px solid var(--border-color)', borderRadius: '6px' }}>
+                <div style={{ 
+                  padding: '0.5rem 0.75rem', 
+                  backgroundColor: 'rgba(0,0,0,0.03)', 
+                  fontSize: '0.8rem', 
+                  fontWeight: 600, 
+                  borderBottom: '1px solid var(--border-color)',
+                  borderTopLeftRadius: '5px',
+                  borderTopRightRadius: '5px'
+                }}>
                   Invoice tovarlari ro'yxati
                 </div>
-                <div style={{ maxHeight: '140px', overflowY: 'auto' }}>
+                <div style={{ 
+                  maxHeight: '180px', 
+                  overflowY: 'scroll', 
+                  paddingBottom: '8px',
+                  borderBottomLeftRadius: '5px',
+                  borderBottomRightRadius: '5px'
+                }}>
                   {histItems.length === 0 ? (
                     <div style={{ padding: '1.5rem', textAlign: 'center', color: 'var(--color-text-muted)', fontSize: '0.8rem' }}>
                       Hozircha hech qanday mahsulot qo'shilmagan.
