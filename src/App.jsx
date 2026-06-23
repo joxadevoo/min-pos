@@ -2864,7 +2864,16 @@ export default function App() {
       </header>
 
       {/* MAIN CONTAINER */}
-      <main className="content-viewport">
+      <main 
+        className="content-viewport"
+        style={activeTab === 'transactions' ? { 
+          height: 'calc(100vh - 70px)', 
+          display: 'flex', 
+          flexDirection: 'column', 
+          overflow: 'hidden',
+          paddingBottom: '1.5rem'
+        } : {}}
+      >
 
         {/* CLOUD PERMISSION WARNING BANNER */}
         {firebaseError && (
@@ -3311,8 +3320,8 @@ service cloud.firestore {
         {/* TAB: SALES & INVOICE HISTORY */}
         {/* ========================================================================= */}
         {activeTab === 'transactions' && (
-          <>
-            <div className="page-header">
+          <div style={{ display: 'flex', flexDirection: 'column', flexGrow: 1, overflow: 'hidden', height: '100%' }}>
+            <div className="page-header" style={{ flexShrink: 0, paddingBottom: '0.75rem', marginBottom: '0.5rem' }}>
               <div className="header-title">
                 <h1>Fakturalar va Savdo Tarixi (Invoices History)</h1>
                 <p>POS terminali orqali amalga oshirilgan barcha sotuvlar ro'yxati va chek qayta chiqarish</p>
@@ -3335,7 +3344,7 @@ service cloud.firestore {
             </div>
 
             {/* STATS OVERVIEW */}
-            <div className="kpi-grid">
+            <div className="kpi-grid" style={{ flexShrink: 0 }}>
               <div className="kpi-card success">
                 <div>
                   <div className="kpi-icon">
@@ -3389,7 +3398,7 @@ service cloud.firestore {
             </div>
 
             {/* FILTER PANEL */}
-            <div className="panel" style={{ marginTop: '1rem', padding: '1rem' }}>
+            <div className="panel" style={{ marginTop: '1rem', padding: '1rem', flexShrink: 0 }}>
               <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(160px, 1fr))', gap: '1rem', alignItems: 'end' }}>
                 <div className="form-group" style={{ marginBottom: 0 }}>
                   <label style={{ fontSize: '0.75rem', fontWeight: 600, color: 'var(--color-text-muted)', marginBottom: '4px', display: 'block' }}>Qidiruv</label>
@@ -3474,12 +3483,12 @@ service cloud.firestore {
             </div>
 
             {/* TRANSACTIONS TABLE */}
-            <div className="panel" style={{ marginTop: '1rem' }}>
-              <div className="panel-header">
+            <div className="panel" style={{ marginTop: '1rem', flexGrow: 1, display: 'flex', flexDirection: 'column', overflow: 'hidden' }}>
+              <div className="panel-header" style={{ flexShrink: 0 }}>
                 <h3 style={{ fontSize: '1rem' }}>Savdo Fakturalari ro'yxati (Receipts Ledger)</h3>
               </div>
-              <div className="panel-body" style={{ padding: 0 }}>
-                <div className="table-container">
+              <div className="panel-body" style={{ padding: 0, flexGrow: 1, display: 'flex', flexDirection: 'column', overflow: 'hidden' }}>
+                <div className="table-container" style={{ flexGrow: 1, overflowY: 'auto' }}>
                   <table className="custom-table">
                     <thead>
                       <tr>
@@ -3582,7 +3591,7 @@ service cloud.firestore {
                 </div>
               </div>
             </div>
-          </>
+          </div>
         )}
 
         {/* Dashboard tab removed */}
