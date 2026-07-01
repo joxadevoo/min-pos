@@ -4804,7 +4804,7 @@ service cloud.firestore {
                               </tr>
                             </thead>
                             <tbody>
-                              {chunks[0].map((item, idx) => {
+                              {items.map((item, idx) => {
                                 const isPriceChanged = item.originalPrice !== undefined && item.originalPrice !== item.price;
                                 return (
                                   <tr key={idx}>
