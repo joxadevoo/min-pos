@@ -1542,7 +1542,7 @@ body {
     display: block !important;
     height: auto !important;
     min-height: auto !important;
-    background: none !important;
+    background: #ffffff !important;
     overflow: visible !important;
     padding: 0 !important;
     margin: 0 !important;
@@ -1553,7 +1553,7 @@ body {
   }
   .modal-overlay {
     position: static !important;
-    background: transparent !important;
+    background: #ffffff !important;
     backdrop-filter: none !important;
     margin: 0 !important;
     padding: 0 !important;
@@ -1566,7 +1566,7 @@ body {
     position: static !important;
     border: none !important;
     box-shadow: none !important;
-    background: transparent !important;
+    background: #ffffff !important;
     width: 100% !important;
     max-width: 100% !important;
     margin: 0 !important;
@@ -1585,7 +1585,7 @@ body {
   .a4-invoice-container {
     padding: 0 !important;
     margin: 0 !important;
-    background: none !important;
+    background: #ffffff !important;
     width: 100% !important;
     display: block !important;
   }
@@ -1602,10 +1602,11 @@ body {
     padding: 0 !important; /* Print margins are fully handled by browser via @page margin! */
     margin: 0 !important;
     width: 100% !important; /* Stretches to printable width */
-    height: auto !important; /* Let height flow naturally to avoid layout overflows! */
-    min-height: auto !important;
+    height: 255mm !important; /* Fixed print height matching printable viewport bounds */
     page-break-after: always;
-    display: block !important; /* Standard block display for 100% print compatibility */
+    display: flex !important; /* Flexbox alignment to pin footer wrapper */
+    flex-direction: column !important;
+    justify-content: space-between !important;
     position: relative !important;
     box-sizing: border-box !important;
     background: #ffffff !important;
@@ -1616,7 +1617,7 @@ body {
   .a4-footer-wrapper {
     position: relative !important;
     width: 100% !important;
-    margin-top: 30px !important; /* Clean natural gap from the table */
+    margin-top: auto !important; /* Force footer to the bottom of A4 canvas */
   }
   /* Force all colors to black to ensure print visibility */
   .a4-logo-side h2 {
