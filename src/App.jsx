@@ -4884,14 +4884,14 @@ service cloud.firestore {
                           const pageSubtotal = pageItems.reduce((sum, item) => sum + (item.price * item.qty), 0);
                           
                           // Calculate cumulative subtotal
-                          let cumulativeSubtotalCurrent = 0;
-                          for (let i = 0; i <= pageIdx; i++) {
-                            cumulativeSubtotalCurrent += chunks[i].reduce((sum, item) => sum + (item.price * item.qty), 0);
-                          }
 
-                          return (
-                            <div className="a4-page" key={pageIdx} style={{ fontFamily: 'monospace, Courier, sans-serif' }}>
-                              {/* 1. Header Section */}
+                  return (
+                    <div className="a4-page" key={pageIdx} style={{ fontFamily: 'monospace, Courier, sans-serif' }}>
+                      <table style={{ width: '100%', height: '100%', borderCollapse: 'collapse', border: 'none', background: 'none', tableLayout: 'fixed' }}>
+                        <tbody>
+                          {/* Row 1: Header */}
+                          <tr style={{ background: 'none', border: 'none' }}>
+                            <td style={{ verticalAlign: 'top', height: '1px', padding: '0', border: 'none' }}>
                               <div className="a4-header-wrapper" style={{ width: '100%', textAlign: 'center', marginBottom: '10px' }}>
                                 {isFirstPage ? (
                                   <div style={{ borderBottom: '1px dashed #000000', paddingBottom: '12px', marginBottom: '12px' }}>
@@ -4911,9 +4911,13 @@ service cloud.firestore {
                                   </div>
                                 )}
                               </div>
+                            </td>
+                          </tr>
 
-                              {/* 2. Body Section */}
-                              <div className="a4-body-wrapper" style={{ flexGrow: 1, width: '100%' }}>
+                          {/* Row 2: Body / Products Table */}
+                          <tr style={{ background: 'none', border: 'none' }}>
+                            <td style={{ verticalAlign: 'top', height: 'auto', padding: '0', border: 'none' }}>
+                              <div className="a4-body-wrapper" style={{ width: '100%' }}>
                                 {/* Receipt Info block (Sana, To'lov, Mijoz - First page only) */}
                                 {isFirstPage && (
                                   <div className="a4-meta-section" style={{ borderBottom: '1px dashed #000000', paddingBottom: '10px', marginBottom: '15px', width: '100%', fontSize: '10pt', color: '#000000', lineHeight: '1.5' }}>
@@ -4995,9 +4999,13 @@ service cloud.firestore {
                                   </div>
                                 )}
                               </div>
+                            </td>
+                          </tr>
 
-                              {/* 3. Footer Section */}
-                              <div className="a4-footer-wrapper" style={{ width: '100%', marginTop: 'auto' }}>
+                          {/* Row 3: Footer */}
+                          <tr style={{ background: 'none', border: 'none' }}>
+                            <td style={{ verticalAlign: 'bottom', height: '1px', padding: '0', border: 'none' }}>
+                              <div className="a4-footer-wrapper" style={{ width: '100%' }}>
                                 {/* Totals Section (ONLY on the last page - receipt total style) */}
                                 {isLastPage && (
                                   <div style={{ display: 'flex', justifyContent: 'flex-end', marginBottom: '15px', borderTop: '1px dashed #000000', paddingTop: '10px' }}>
@@ -5032,20 +5040,23 @@ service cloud.firestore {
                                   <p style={{ margin: '4px 0 0 0', fontSize: '9pt' }}>Kosmetika vositalari yaroqlilik muddatlarini doimo tekshiring.</p>
                                 </div>
 
-                                {/* Page Number */}
                                 <div className="a4-page-number" style={{ marginTop: '8px', textAlign: 'center', fontSize: '8pt', color: '#333333' }}>
                                   Sahifa {pageIdx + 1} / {totalPages}
                                 </div>
                               </div>
-                            </div>
-                          );
-                        })}
-                      </div>
-                    )}
-                  </div>
-                );
-              })()}
+                            </td>
+                          </tr>
+                        </tbody>
+                      </table>
+                    </div>
+                    );
+                  })}
+                </div>
+              )}
             </div>
+          );
+        })()}
+      </div>
 
             <div className="modal-footer">
               <button type="button" className="btn btn-secondary" onClick={() => setActivePOSInvoice(null)}>Yopish</button>
