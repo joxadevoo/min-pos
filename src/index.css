@@ -1527,7 +1527,7 @@ body {
 @media print {
   @page {
     size: A4;
-    margin: 10mm 15mm !important; /* Set standard page margins on the sheet */
+    margin: 0 !important; /* Set standard page margins on the sheet */
   }
   body {
     background: #ffffff !important;
@@ -1591,16 +1591,18 @@ body {
   .a4-page {
     border: none !important;
     box-shadow: none !important;
-    padding: 10mm 12mm !important; /* Set standard page hoshiya padding inside printable area */
+    padding: 20mm 15mm !important; /* Safe print margin inside the sheet */
     margin: 0 !important;
-    width: 100% !important;
-    min-height: auto !important; /* Let height flow naturally without overflows */
-    height: auto !important;
+    width: 210mm !important; /* Exact A4 Width */
+    height: 297mm !important; /* Exact A4 Height */
     page-break-after: always;
-    display: block !important; /* Standard block display to avoid flexbox print bugs */
+    display: flex !important; /* Flexbox alignment works 100% when height is fixed */
+    flex-direction: column !important;
+    justify-content: space-between !important;
     position: relative !important;
     box-sizing: border-box !important;
     background: #ffffff !important;
+    overflow: hidden !important;
   }
   .a4-page:last-child {
     page-break-after: avoid;
@@ -1608,7 +1610,7 @@ body {
   .a4-footer-wrapper {
     position: relative !important;
     width: 100% !important;
-    margin-top: 25px !important; /* Give it a nice gap from the content */
+    margin-top: auto !important; /* Pushes the footer to the bottom of the page in flex layout */
   }
   /* Force all colors to black to ensure print visibility */
   .a4-logo-side h2 {
