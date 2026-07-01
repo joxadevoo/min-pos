@@ -4993,10 +4993,13 @@ service cloud.firestore {
                                     Ko'chma jami (Subtotal carried forward): {formatSum(cumulativeSubtotalCurrent)}
                                   </div>
                                 )}
+                              </div>
 
-                                {/* Totals Section (ONLY on the last page, flows naturally right after table) */}
+                              {/* Footer elements (grouped together to align beautifully) */}
+                              <div className="a4-footer-wrapper" style={{ marginTop: 'auto', width: '100%' }}>
+                                {/* Totals Section (ONLY on the last page) */}
                                 {isLastPage && (
-                                  <div className="a4-totals-section" style={{ marginTop: '1.5rem' }}>
+                                  <div className="a4-totals-section" style={{ marginBottom: '1rem', display: 'flex', justifyContent: 'flex-end' }}>
                                     <table className="a4-totals-table">
                                       <tbody>
                                         <tr>
@@ -5017,17 +5020,14 @@ service cloud.firestore {
                                     </table>
                                   </div>
                                 )}
-                              </div>
 
-                              {/* Footer elements */}
-                              <div className="a4-footer-wrapper">
                                 {/* Page Footer Note */}
-                                <div className="a4-footer">
-                                  <p>Xaridingiz uchun rahmat! Kosmetika vositalari yaroqlilik muddatlarini doimo tekshiring.</p>
+                                <div className="a4-footer" style={{ borderTop: '1px solid #cbd5e1', paddingTop: '8px', textAlign: 'center', fontSize: '11px', color: '#64748b' }}>
+                                  <p style={{ margin: 0 }}>Xaridingiz uchun rahmat! Kosmetika vositalari yaroqlilik muddatlarini doimo tekshiring.</p>
                                 </div>
 
                                 {/* Page Number */}
-                                <div className="a4-page-number">
+                                <div className="a4-page-number" style={{ position: 'absolute', bottom: '15px', right: '30px', fontSize: '11px', color: '#64748b' }}>
                                   Sahifa {pageIdx + 1} / {totalPages}
                                 </div>
                               </div>
