@@ -4697,6 +4697,50 @@ service cloud.firestore {
 
                 return (
                   <div>
+                    {/* Dynamic print stylesheet based on selected format */}
+                    {printFormat === 'a4' ? (
+                      <style dangerouslySetInnerHTML={{ __html: `
+                        @media print {
+                          @page {
+                            size: A4;
+                            margin: 25mm 15mm 15mm 15mm !important;
+                          }
+                          .a4-invoice-container {
+                            display: block !important;
+                          }
+                          .receipt-wrapper {
+                            display: none !important;
+                          }
+                        }
+                      `}} />
+                    ) : (
+                      <style dangerouslySetInnerHTML={{ __html: `
+                        @media print {
+                          @page {
+                            size: 80mm auto !important;
+                            margin: 0 !important;
+                          }
+                          .a4-invoice-container {
+                            display: none !important;
+                          }
+                          .receipt-wrapper {
+                            display: block !important;
+                            width: 80mm !important;
+                            margin: 0 !important;
+                            padding: 0 !important;
+                          }
+                          .receipt-card {
+                            width: 80mm !important;
+                            max-width: 80mm !important;
+                            padding: 3mm !important;
+                            margin: 0 !important;
+                            border: none !important;
+                            box-shadow: none !important;
+                          }
+                        }
+                      `}} />
+                    )}
+
                     {/* Format selection header (hidden during printing) */}
                     <div className="print-format-toggle" style={{ marginBottom: '1rem' }}>
                       <button
