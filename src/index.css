@@ -1634,12 +1634,12 @@ body {
     border-bottom: 2px solid #000000 !important;
   }
   .a4-table th {
-    background-color: #f1f5f9 !important;
+    background-color: transparent !important;
     color: #000000 !important;
-    border-bottom: 2px solid #000000 !important;
+    border-bottom: 1px dashed #000000 !important;
   }
   .a4-table td {
-    border-bottom: 1px solid #cbd5e1 !important;
+    border-bottom: 1px dashed #e2e8f0 !important;
   }
   .a4-carry-forward {
     color: #000000 !important;

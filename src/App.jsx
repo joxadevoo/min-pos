@@ -4846,85 +4846,66 @@ service cloud.firestore {
                           }
 
                           return (
-                            <div className="a4-page" key={pageIdx}>
+                            <div className="a4-page" key={pageIdx} style={{ fontFamily: 'monospace, Courier, sans-serif' }}>
                               {/* 1. Header Section */}
-                              <div className="a4-header-wrapper" style={{ width: '100%' }}>
+                              <div className="a4-header-wrapper" style={{ width: '100%', textAlign: 'center', marginBottom: '10px' }}>
                                 {isFirstPage ? (
-                                  <div className="a4-simple-header" style={{ borderBottom: '2px solid #1a365d', paddingBottom: '10px', marginBottom: '15px', width: '100%' }}>
-                                    <table style={{ width: '100%', borderCollapse: 'collapse', border: 'none', background: 'none' }}>
-                                      <tbody>
-                                        <tr style={{ border: 'none', background: 'none' }}>
-                                          <td style={{ width: '55%', padding: '0', border: 'none', background: 'none', textAlign: 'left', verticalAlign: 'middle' }}>
-                                            <h1 style={{ fontSize: '24pt', fontWeight: 'bold', color: '#1a365d', margin: '0', fontFamily: 'Outfit, sans-serif', lineHeight: '1' }}>VIDALITA</h1>
-                                            <div style={{ fontSize: '9pt', color: '#718096', marginTop: '5px' }}>
-                                              Termez, Burkhoniddin Marginoniy Street, 29G | Tel: +998 95 359 28 28
-                                            </div>
-                                          </td>
-                                          <td style={{ width: '45%', padding: '0', border: 'none', background: 'none', textAlign: 'right', verticalAlign: 'middle' }}>
-                                            <div style={{ fontSize: '18px', fontWeight: 'bold', color: '#1a365d', margin: '0', lineHeight: '1.2' }}>FAKTURA / INVOICE</div>
-                                            <div style={{ fontSize: '11pt', fontWeight: 'bold', color: '#2d3748', marginTop: '4px' }}>
-                                              Faktura №: {activePOSInvoice.id}
-                                            </div>
-                                          </td>
-                                        </tr>
-                                      </tbody>
-                                    </table>
+                                  <div style={{ borderBottom: '1px dashed #000000', paddingBottom: '12px', marginBottom: '12px' }}>
+                                    <h1 style={{ fontSize: '28px', fontWeight: 'bold', color: '#000000', margin: '0 0 5px 0', textTransform: 'uppercase', letterSpacing: '2px' }}>VIDALITA</h1>
+                                    <div style={{ fontSize: '10pt', color: '#000000', lineHeight: '1.4' }}>
+                                      Termez, Burkhoniddin Marginoniy Street, 29G<br />
+                                      Tel: +998 95 359 28 28 | Email: info@turkglobalcenter.uz
+                                    </div>
+                                    <div style={{ fontSize: '12pt', fontWeight: 'bold', color: '#000000', marginTop: '10px', textTransform: 'uppercase', letterSpacing: '1px' }}>
+                                      FAKTURA / INVOICE №: {activePOSInvoice.id}
+                                    </div>
                                   </div>
                                 ) : (
-                                  <div className="a4-simple-header" style={{ borderBottom: '1px solid #e2e8f0', paddingBottom: '5px', marginBottom: '12px' }}>
-                                    <table style={{ width: '100%', borderCollapse: 'collapse', border: 'none', background: 'none' }}>
-                                      <tbody>
-                                        <tr style={{ border: 'none', background: 'none' }}>
-                                          <td style={{ padding: '0', border: 'none', background: 'none', textAlign: 'left', fontSize: '9pt', color: '#718096', fontWeight: 'bold' }}>
-                                            VIDALITA FAKTURA
-                                          </td>
-                                          <td style={{ padding: '0', border: 'none', background: 'none', textAlign: 'right', fontSize: '9pt', color: '#718096' }}>
-                                            Faktura №: <strong>{activePOSInvoice.id}</strong> | Sahifa {pageIdx + 1} / {totalPages}
-                                          </td>
-                                        </tr>
-                                      </tbody>
-                                    </table>
+                                  <div style={{ borderBottom: '1px dashed #000000', paddingBottom: '5px', marginBottom: '10px', display: 'flex', justifyContent: 'space-between', fontSize: '9pt', color: '#000000' }}>
+                                    <span>VIDALITA FAKTURA</span>
+                                    <span>Faktura №: {activePOSInvoice.id} | Sahifa {pageIdx + 1} / {totalPages}</span>
                                   </div>
                                 )}
                               </div>
 
                               {/* 2. Body Section */}
                               <div className="a4-body-wrapper" style={{ flexGrow: 1, width: '100%' }}>
-                                {/* Invoice Metadata Section (Sana, To'lov turi, Mijoz - First page only, separate block below header) */}
+                                {/* Receipt Info block (Sana, To'lov, Mijoz - First page only) */}
                                 {isFirstPage && (
-                                  <div className="a4-meta-section" style={{ borderBottom: '1px solid #cbd5e1', paddingBottom: '8px', marginBottom: '15px', width: '100%', fontSize: '9.5pt', color: '#4a5568' }}>
+                                  <div className="a4-meta-section" style={{ borderBottom: '1px dashed #000000', paddingBottom: '10px', marginBottom: '15px', width: '100%', fontSize: '10pt', color: '#000000', lineHeight: '1.5' }}>
                                     <table style={{ width: '100%', borderCollapse: 'collapse', border: 'none', background: 'none' }}>
                                       <tbody>
                                         <tr style={{ border: 'none', background: 'none' }}>
-                                          <td style={{ width: '33%', padding: '0', border: 'none', background: 'none', textAlign: 'left' }}>
-                                            <span style={{ color: '#718096', fontWeight: 500 }}>Sana va vaqt:</span><br />
-                                            <strong style={{ color: '#2d3748' }}>{activePOSInvoice.date} {activePOSInvoice.time}</strong>
-                                          </td>
-                                          <td style={{ width: '34%', padding: '0', border: 'none', background: 'none', textAlign: 'center' }}>
-                                            <span style={{ color: '#718096', fontWeight: 500 }}>To'lov turi:</span><br />
-                                            <strong style={{ color: '#2d3748' }}>{activePOSInvoice.paymentMethod}</strong>
-                                          </td>
-                                          <td style={{ width: '33%', padding: '0', border: 'none', background: 'none', textAlign: 'right' }}>
-                                            <span style={{ color: '#718096', fontWeight: 500 }}>Mijoz:</span><br />
-                                            <strong style={{ color: '#2d3748' }}>
-                                              {activePOSInvoice.customerName || 'Mijoz'} {activePOSInvoice.customerPhone ? `(${activePOSInvoice.customerPhone})` : ''}
-                                            </strong>
-                                          </td>
+                                          <td style={{ width: '120px', padding: '3px 0', border: 'none', color: '#555555' }}>SANA VA VAQT:</td>
+                                          <td style={{ padding: '3px 0', border: 'none', fontWeight: 'bold', color: '#000000' }}>{activePOSInvoice.date} {activePOSInvoice.time}</td>
                                         </tr>
+                                        <tr style={{ border: 'none', background: 'none' }}>
+                                          <td style={{ width: '120px', padding: '3px 0', border: 'none', color: '#555555' }}>TO'LOV TURI:</td>
+                                          <td style={{ padding: '3px 0', border: 'none', fontWeight: 'bold', color: '#000000' }}>{activePOSInvoice.paymentMethod}</td>
+                                        </tr>
+                                        {(activePOSInvoice.customerName || activePOSInvoice.customerPhone) && (
+                                          <tr style={{ border: 'none', background: 'none' }}>
+                                            <td style={{ width: '120px', padding: '3px 0', border: 'none', color: '#555555' }}>MIJOZ:</td>
+                                            <td style={{ padding: '3px 0', border: 'none', fontWeight: 'bold', color: '#000000' }}>
+                                              {activePOSInvoice.customerName || 'Mijoz'} {activePOSInvoice.customerPhone ? `(${activePOSInvoice.customerPhone})` : ''}
+                                            </td>
+                                          </tr>
+                                        )}
                                       </tbody>
                                     </table>
                                   </div>
                                 )}
+
                                 {/* Products Table */}
                                 <div className="a4-table-wrapper" style={{ width: '100%' }}>
-                                  <table className="a4-table" style={{ width: '100%', borderCollapse: 'collapse', fontSize: '9.5pt' }}>
+                                  <table className="a4-table" style={{ width: '100%', borderCollapse: 'collapse', fontSize: '10pt', color: '#000000' }}>
                                     <thead>
-                                      <tr>
-                                        <th style={{ width: '5%', textAlign: 'center' }}>№</th>
-                                        <th style={{ width: '45%' }}>Mahsulot yoki xizmat nomi</th>
-                                        <th style={{ width: '18%', textAlign: 'right' }}>Sotish narxi</th>
-                                        <th style={{ width: '12%', textAlign: 'center' }}>Soni</th>
-                                        <th style={{ width: '20%', textAlign: 'right' }}>Jami (UZS)</th>
+                                      <tr style={{ borderBottom: '1px dashed #000000' }}>
+                                        <th style={{ width: '5%', textAlign: 'center', padding: '6px 4px', fontWeight: 'bold', background: 'none', color: '#000000', borderBottom: '1px dashed #000000' }}>№</th>
+                                        <th style={{ width: '50%', textAlign: 'left', padding: '6px 4px', fontWeight: 'bold', background: 'none', color: '#000000', borderBottom: '1px dashed #000000' }}>MAHSULOT NOMI</th>
+                                        <th style={{ width: '15%', textAlign: 'right', padding: '6px 4px', fontWeight: 'bold', background: 'none', color: '#000000', borderBottom: '1px dashed #000000' }}>NARXI</th>
+                                        <th style={{ width: '10%', textAlign: 'center', padding: '6px 4px', fontWeight: 'bold', background: 'none', color: '#000000', borderBottom: '1px dashed #000000' }}>SONI</th>
+                                        <th style={{ width: '20%', textAlign: 'right', padding: '6px 4px', fontWeight: 'bold', background: 'none', color: '#000000', borderBottom: '1px dashed #000000' }}>JAMI</th>
                                       </tr>
                                     </thead>
                                     <tbody>
@@ -4932,21 +4913,21 @@ service cloud.firestore {
                                         const globalIdx = startIndex + subIdx;
                                         const isPriceChanged = item.originalPrice !== undefined && item.originalPrice !== item.price;
                                         return (
-                                          <tr key={subIdx}>
-                                            <td style={{ textAlign: 'center' }}>{globalIdx + 1}</td>
-                                            <td>
-                                              <div style={{ fontWeight: 600 }}>{item.name.split(' - ')[0]}</div>
-                                              <div style={{ fontSize: '0.7rem', color: '#64748b', marginTop: '2px' }}>
+                                          <tr key={subIdx} style={{ borderBottom: '1px dashed #e2e8f0' }}>
+                                            <td style={{ textAlign: 'center', padding: '8px 4px' }}>{globalIdx + 1}</td>
+                                            <td style={{ padding: '8px 4px' }}>
+                                              <div style={{ fontWeight: 'bold' }}>{item.name.split(' - ')[0]}</div>
+                                              <div style={{ fontSize: '0.75rem', color: '#666666', marginTop: '2px' }}>
                                                 Variant: {item.name.split(' - ')[1] || 'Oddiy'}
                                               </div>
                                             </td>
-                                            <td style={{ textAlign: 'right' }}>
+                                            <td style={{ textAlign: 'right', padding: '8px 4px' }}>
                                               {isPriceChanged ? (
                                                 <div>
-                                                  <div style={{ textDecoration: 'line-through', fontSize: '0.7rem', color: '#94a3b8' }}>
+                                                  <div style={{ textDecoration: 'line-through', fontSize: '0.75rem', color: '#888888' }}>
                                                     {formatSum(item.originalPrice)}
                                                   </div>
-                                                  <div style={{ color: '#D97706', fontWeight: 600 }}>
+                                                  <div style={{ fontWeight: 'bold' }}>
                                                     {formatSum(item.price)}
                                                   </div>
                                                 </div>
@@ -4954,8 +4935,8 @@ service cloud.firestore {
                                                 formatSum(item.price)
                                               )}
                                             </td>
-                                            <td style={{ textAlign: 'center' }}>{item.qty}</td>
-                                            <td style={{ textAlign: 'right', fontWeight: 600 }}>{formatSum(item.price * item.qty)}</td>
+                                            <td style={{ textAlign: 'center', padding: '8px 4px' }}>{item.qty}</td>
+                                            <td style={{ textAlign: 'right', padding: '8px 4px', fontWeight: 'bold' }}>{formatSum(item.price * item.qty)}</td>
                                           </tr>
                                         );
                                       })}
@@ -4965,36 +4946,36 @@ service cloud.firestore {
 
                                 {/* Carry Forward Subtotal (if more pages follow) */}
                                 {!isLastPage && (
-                                  <div className="a4-carry-forward" style={{ textAlign: 'right', fontStyle: 'italic', fontSize: '9pt', color: '#718096', borderTop: '1px dashed #cbd5e1', paddingTop: '5px', marginTop: '10px' }}>
-                                    Ko'chma jami (Subtotal carried forward): {formatSum(cumulativeSubtotalCurrent)}
+                                  <div className="a4-carry-forward" style={{ textAlign: 'right', fontStyle: 'italic', fontSize: '10pt', color: '#000000', borderTop: '1px dashed #000000', paddingTop: '8px', marginTop: '15px' }}>
+                                    KO'CHMA JAMI (SUBTOTAL CARRIED FORWARD): {formatSum(cumulativeSubtotalCurrent)}
                                   </div>
                                 )}
                               </div>
 
                               {/* 3. Footer Section */}
                               <div className="a4-footer-wrapper" style={{ width: '100%', marginTop: 'auto' }}>
-                                {/* Totals Section (ONLY on the last page - professional right-aligned table style) */}
+                                {/* Totals Section (ONLY on the last page - receipt total style) */}
                                 {isLastPage && (
-                                  <div className="a4-totals-section" style={{ display: 'flex', justifyContent: 'flex-end', marginBottom: '15px' }}>
+                                  <div style={{ display: 'flex', justifyContent: 'flex-end', marginBottom: '15px', borderTop: '1px dashed #000000', paddingTop: '10px' }}>
                                     <table style={{ width: '300px', borderCollapse: 'collapse', border: 'none', background: 'none' }}>
                                       <tbody>
                                         <tr style={{ background: 'none', border: 'none' }}>
-                                          <td style={{ padding: '5px 10px', fontSize: '9.5pt', color: '#718096', fontWeight: 500 }}>Aralash jami:</td>
-                                          <td style={{ padding: '5px 10px', fontSize: '9.5pt', color: '#2d3748', textAlign: 'right', fontWeight: 600 }}>{formatSum(activePOSInvoice.subtotal)}</td>
+                                          <td style={{ padding: '4px 0', fontSize: '10pt', color: '#333333' }}>ORALIQ JAMI (SUBTOTAL):</td>
+                                          <td style={{ padding: '4px 0', fontSize: '10pt', color: '#000000', textAlign: 'right', fontWeight: 'bold' }}>{formatSum(activePOSInvoice.subtotal)}</td>
                                         </tr>
                                         {activePOSInvoice.discountAmount > 0 && (
                                           <tr style={{ background: 'none', border: 'none' }}>
-                                            <td style={{ padding: '5px 10px', fontSize: '9.5pt', color: '#dc2626', fontWeight: 500 }}>
-                                              Chegirma {activePOSInvoice.discountPercent > 0 ? `(${activePOSInvoice.discountPercent}%)` : ''}:
+                                            <td style={{ padding: '4px 0', fontSize: '10pt', color: '#000000' }}>
+                                              CHEGIRMA {activePOSInvoice.discountPercent > 0 ? `(${activePOSInvoice.discountPercent}%)` : ''}:
                                             </td>
-                                            <td style={{ padding: '5px 10px', fontSize: '9.5pt', color: '#dc2626', textAlign: 'right', fontWeight: 600 }}>
+                                            <td style={{ padding: '4px 0', fontSize: '10pt', color: '#000000', textAlign: 'right', fontWeight: 'bold' }}>
                                               -{formatSum(activePOSInvoice.discountAmount)}
                                             </td>
                                           </tr>
                                         )}
-                                        <tr style={{ fontSize: '11pt', fontWeight: 'bold', color: '#1a365d', backgroundColor: '#edf2f7', borderTop: '2px solid #1a365d' }}>
-                                          <td style={{ padding: '6px 10px' }}>UMUMIY TO'LOV:</td>
-                                          <td style={{ padding: '6px 10px', textAlign: 'right' }}>{formatSum(activePOSInvoice.totalAmount)}</td>
+                                        <tr style={{ fontSize: '12pt', fontWeight: 'bold', color: '#000000', borderTop: '1px dashed #000000', borderBottom: '1px dashed #000000' }}>
+                                          <td style={{ padding: '8px 0' }}>JAMI TO'LANDI:</td>
+                                          <td style={{ padding: '8px 0', textAlign: 'right' }}>{formatSum(activePOSInvoice.totalAmount)}</td>
                                         </tr>
                                       </tbody>
                                     </table>
@@ -5002,12 +4983,13 @@ service cloud.firestore {
                                 )}
 
                                 {/* Page Footer Note */}
-                                <div className="a4-footer" style={{ borderTop: '1px dashed #e2e8f0', paddingTop: '10px', textAlign: 'center', fontSize: '10pt', color: '#64748b' }}>
-                                  <p style={{ margin: 0 }}>Xaridingiz uchun rahmat! Kosmetika vositalari yaroqlilik muddatlarini doimo tekshiring.</p>
+                                <div className="a4-footer" style={{ borderTop: isLastPage ? 'none' : '1px dashed #000000', paddingTop: '10px', textAlign: 'center', fontSize: '10pt', color: '#000000' }}>
+                                  <p style={{ margin: 0, fontWeight: 'bold', textTransform: 'uppercase' }}>Xaridingiz uchun rahmat!</p>
+                                  <p style={{ margin: '4px 0 0 0', fontSize: '9pt' }}>Kosmetika vositalari yaroqlilik muddatlarini doimo tekshiring.</p>
                                 </div>
 
                                 {/* Page Number */}
-                                <div className="a4-page-number" style={{ marginTop: '6px', textAlign: 'center', fontSize: '8pt', color: '#718096' }}>
+                                <div className="a4-page-number" style={{ marginTop: '8px', textAlign: 'center', fontSize: '8pt', color: '#333333' }}>
                                   Sahifa {pageIdx + 1} / {totalPages}
                                 </div>
                               </div>
