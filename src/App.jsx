@@ -4854,38 +4854,17 @@ service cloud.firestore {
                                     <table style={{ width: '100%', borderCollapse: 'collapse', border: 'none', background: 'none' }}>
                                       <tbody>
                                         <tr style={{ border: 'none', background: 'none' }}>
-                                          <td style={{ width: '55%', padding: '0', border: 'none', background: 'none', textAlign: 'left', verticalAlign: 'top' }}>
-                                            <h1 style={{ fontSize: '24pt', fontWeight: 'bold', color: '#1a365d', margin: '0 0 5px 0', fontFamily: 'Outfit, sans-serif' }}>VIDALITA</h1>
-                                            <div style={{ fontSize: '9.5pt', color: '#4a5568', lineHeight: '1.4' }}>
-                                              Termez, Burkhoniddin Marginoniy Street, 29G<br />
-                                              Tel: +998 95 359 28 28 | Email: info@turkglobalcenter.uz
+                                          <td style={{ width: '55%', padding: '0', border: 'none', background: 'none', textAlign: 'left', verticalAlign: 'middle' }}>
+                                            <h1 style={{ fontSize: '24pt', fontWeight: 'bold', color: '#1a365d', margin: '0', fontFamily: 'Outfit, sans-serif', lineHeight: '1' }}>VIDALITA</h1>
+                                            <div style={{ fontSize: '9pt', color: '#718096', marginTop: '5px' }}>
+                                              Termez, Burkhoniddin Marginoniy Street, 29G | Tel: +998 95 359 28 28
                                             </div>
                                           </td>
-                                          <td style={{ width: '45%', padding: '0', border: 'none', background: 'none', textAlign: 'right', verticalAlign: 'top' }}>
-                                            <table style={{ marginLeft: 'auto', fontSize: '9.5pt', borderCollapse: 'collapse', border: 'none', background: 'none' }}>
-                                              <tbody>
-                                                <tr style={{ border: 'none', background: 'none' }}>
-                                                  <td style={{ color: '#718096', fontWeight: 500, paddingRight: '10px', paddingBottom: '4px', textAlign: 'right' }}>Faktura №:</td>
-                                                  <td style={{ fontWeight: 'bold', color: '#1a365d', textAlign: 'left', paddingBottom: '4px' }}>{activePOSInvoice.id}</td>
-                                                </tr>
-                                                <tr style={{ border: 'none', background: 'none' }}>
-                                                  <td style={{ color: '#718096', fontWeight: 500, paddingRight: '10px', paddingBottom: '4px', textAlign: 'right' }}>Sana va vaqt:</td>
-                                                  <td style={{ color: '#2d3748', textAlign: 'left', paddingBottom: '4px' }}>{activePOSInvoice.date} {activePOSInvoice.time}</td>
-                                                </tr>
-                                                <tr style={{ border: 'none', background: 'none' }}>
-                                                  <td style={{ color: '#718096', fontWeight: 500, paddingRight: '10px', paddingBottom: '4px', textAlign: 'right' }}>To'lov turi:</td>
-                                                  <td style={{ color: '#2d3748', textAlign: 'left', paddingBottom: '4px' }}>{activePOSInvoice.paymentMethod}</td>
-                                                </tr>
-                                                {(activePOSInvoice.customerName || activePOSInvoice.customerPhone) && (
-                                                  <tr style={{ border: 'none', background: 'none' }}>
-                                                    <td style={{ color: '#718096', fontWeight: 500, paddingRight: '10px', paddingBottom: '4px', textAlign: 'right' }}>Mijoz:</td>
-                                                    <td style={{ color: '#2d3748', textAlign: 'left', paddingBottom: '4px', fontWeight: 'bold' }}>
-                                                      {activePOSInvoice.customerName || 'Mijoz'} {activePOSInvoice.customerPhone ? `(${activePOSInvoice.customerPhone})` : ''}
-                                                    </td>
-                                                  </tr>
-                                                )}
-                                              </tbody>
-                                            </table>
+                                          <td style={{ width: '45%', padding: '0', border: 'none', background: 'none', textAlign: 'right', verticalAlign: 'middle' }}>
+                                            <div style={{ fontSize: '18px', fontWeight: 'bold', color: '#1a365d', margin: '0', lineHeight: '1.2' }}>FAKTURA / INVOICE</div>
+                                            <div style={{ fontSize: '11pt', fontWeight: 'bold', color: '#2d3748', marginTop: '4px' }}>
+                                              Faktura №: {activePOSInvoice.id}
+                                            </div>
                                           </td>
                                         </tr>
                                       </tbody>
@@ -4911,6 +4890,31 @@ service cloud.firestore {
 
                               {/* 2. Body Section */}
                               <div className="a4-body-wrapper" style={{ flexGrow: 1, width: '100%' }}>
+                                {/* Invoice Metadata Section (Sana, To'lov turi, Mijoz - First page only, separate block below header) */}
+                                {isFirstPage && (
+                                  <div className="a4-meta-section" style={{ borderBottom: '1px solid #cbd5e1', paddingBottom: '8px', marginBottom: '15px', width: '100%', fontSize: '9.5pt', color: '#4a5568' }}>
+                                    <table style={{ width: '100%', borderCollapse: 'collapse', border: 'none', background: 'none' }}>
+                                      <tbody>
+                                        <tr style={{ border: 'none', background: 'none' }}>
+                                          <td style={{ width: '33%', padding: '0', border: 'none', background: 'none', textAlign: 'left' }}>
+                                            <span style={{ color: '#718096', fontWeight: 500 }}>Sana va vaqt:</span><br />
+                                            <strong style={{ color: '#2d3748' }}>{activePOSInvoice.date} {activePOSInvoice.time}</strong>
+                                          </td>
+                                          <td style={{ width: '34%', padding: '0', border: 'none', background: 'none', textAlign: 'center' }}>
+                                            <span style={{ color: '#718096', fontWeight: 500 }}>To'lov turi:</span><br />
+                                            <strong style={{ color: '#2d3748' }}>{activePOSInvoice.paymentMethod}</strong>
+                                          </td>
+                                          <td style={{ width: '33%', padding: '0', border: 'none', background: 'none', textAlign: 'right' }}>
+                                            <span style={{ color: '#718096', fontWeight: 500 }}>Mijoz:</span><br />
+                                            <strong style={{ color: '#2d3748' }}>
+                                              {activePOSInvoice.customerName || 'Mijoz'} {activePOSInvoice.customerPhone ? `(${activePOSInvoice.customerPhone})` : ''}
+                                            </strong>
+                                          </td>
+                                        </tr>
+                                      </tbody>
+                                    </table>
+                                  </div>
+                                )}
                                 {/* Products Table */}
                                 <div className="a4-table-wrapper" style={{ width: '100%' }}>
                                   <table className="a4-table" style={{ width: '100%', borderCollapse: 'collapse', fontSize: '9.5pt' }}>
