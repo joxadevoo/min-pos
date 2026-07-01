@@ -4884,6 +4884,10 @@ service cloud.firestore {
                           const pageSubtotal = pageItems.reduce((sum, item) => sum + (item.price * item.qty), 0);
                           
                           // Calculate cumulative subtotal
+                          let cumulativeSubtotalCurrent = 0;
+                          for (let i = 0; i <= pageIdx; i++) {
+                            cumulativeSubtotalCurrent += chunks[i].reduce((sum, item) => sum + (item.price * item.qty), 0);
+                          }
 
                   return (
                     <div className="a4-page" key={pageIdx} style={{ fontFamily: 'monospace, Courier, sans-serif' }}>
