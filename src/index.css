@@ -1527,7 +1527,7 @@ body {
 @media print {
   @page {
     size: A4;
-    margin: 0 !important; /* Set standard page margins on the sheet */
+    margin: 12mm 15mm !important; /* Safe print margins */
   }
   body {
     background: #ffffff !important;
@@ -1591,12 +1591,12 @@ body {
   .a4-page {
     border: none !important;
     box-shadow: none !important;
-    padding: 20mm 15mm !important; /* Safe print margin inside the sheet */
+    padding: 0 !important; /* Print margins are fully handled by browser via @page margin! */
     margin: 0 !important;
-    width: 210mm !important; /* Exact A4 Width */
-    height: 297mm !important; /* Exact A4 Height */
+    width: 100% !important; /* Stretches to printable width */
+    height: 100vh !important; /* Matches printable page height exactly, regardless of headers/footers settings! */
     page-break-after: always;
-    display: flex !important; /* Flexbox alignment works 100% when height is fixed */
+    display: flex !important; /* Flexbox alignment works flawlessly with fixed 100vh height */
     flex-direction: column !important;
     justify-content: space-between !important;
     position: relative !important;
