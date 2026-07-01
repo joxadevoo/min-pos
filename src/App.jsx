@@ -260,8 +260,8 @@ export default function App() {
   const [activeModal, setActiveModal] = useState(null);
   const [modalInputs, setModalInputs] = useState({});
   const [modalError, setModalError] = useState('');
-  const [cancellingTrx, setCancellingTrx] = useState(null);
   const [activePOSInvoice, setActivePOSInvoice] = useState(null);
+  const [printFormat, setPrintFormat] = useState('a4'); // 'a4' or 'thermal'
 
   // --- Lock background scroll when modal is active ---
   useEffect(() => {
@@ -4662,119 +4662,368 @@ service cloud.firestore {
       {/* ========================================================================= */}
       {activePOSInvoice && (
         <div className="modal-overlay">
-          <div className="modal-content" style={{ maxWidth: '430px' }}>
+          <div className="modal-content" style={{ maxWidth: printFormat === 'a4' ? '850px' : '430px', width: '100%', transition: 'max-width 0.25s ease' }}>
             <div className="modal-header">
-              <h3>Faktura / Chek Checkout</h3>
+              <h3>Faktura / Chek Chop Etish</h3>
               <button type="button" className="modal-close-btn" onClick={() => setActivePOSInvoice(null)}>
                 <X size={18} />
               </button>
             </div>
 
-            <div className="modal-body" style={{ padding: '0.5rem', backgroundColor: 'var(--bg-primary)' }}>
-              <div className="receipt-wrapper">
-                <div className="receipt-card" id="printable-pos-receipt">
-                  <div className="receipt-header">
-                    <h2>VIDALITA</h2>
-                    <p>Termez, Burkhoniddin Marginoniy Street, 29G</p>
-                    <p>Tel: +998 95 359 28 28</p>
-                    <p>Email: nfo@turkglobalcenter.uz</p>
-                  </div>
+            <div className="modal-body" style={{ padding: '1rem', backgroundColor: 'var(--bg-primary)', overflowY: 'auto', maxHeight: '75vh' }}>
+              {(() => {
+                const items = activePOSInvoice.items || [];
+                const firstPageLimit = 12;
+                const nextPageLimit = 18;
+                const chunks = [];
+                
+                if (printFormat === 'thermal') {
+                  chunks.push(items);
+                } else {
+                  // A4 format pagination
+                  if (items.length <= firstPageLimit) {
+                    chunks.push(items);
+                  } else {
+                    chunks.push(items.slice(0, firstPageLimit));
+                    let index = firstPageLimit;
+                    while (index < items.length) {
+                      chunks.push(items.slice(index, index + nextPageLimit));
+                      index += nextPageLimit;
+                    }
+                  }
+                }
+                
+                const totalPages = chunks.length;
 
-                  <div className="receipt-divider"></div>
+                return (
+                  <div>
+                    {/* Format selection header (hidden during printing) */}
+                    <div className="print-format-toggle" style={{ marginBottom: '1rem' }}>
+                      <button
+                        type="button"
+                        className={`print-format-btn ${printFormat === 'a4' ? 'active' : ''}`}
+                        onClick={() => setPrintFormat('a4')}
+                      >
+                        <FileText size={16} />
+                        <span>A4 Faktura (Ko'p sahifali)</span>
+                      </button>
+                      <button
+                        type="button"
+                        className={`print-format-btn ${printFormat === 'thermal' ? 'active' : ''}`}
+                        onClick={() => setPrintFormat('thermal')}
+                      >
+                        <Printer size={16} />
+                        <span>Kassa Cheki (80mm)</span>
+                      </button>
+                    </div>
 
-                  <div className="receipt-meta-row">
-                    <span>Faktura №:</span>
-                    <strong style={{ fontWeight: 'bold' }}>{activePOSInvoice.id}</strong>
-                  </div>
-                  <div className="receipt-meta-row">
-                    <span>Sana / Vaqt:</span>
-                    <span>{activePOSInvoice.date} {activePOSInvoice.time}</span>
-                  </div>
-                  <div className="receipt-meta-row">
-                    <span>Sotuvchi:</span>
-                    <span>{activePOSInvoice.sellerName || (currentUser ? currentUser.name : "Adizova D. (POS)")}</span>
-                  </div>
-                  <div className="receipt-meta-row">
-                    <span>Mijoz:</span>
-                    <span>{activePOSInvoice.customerName}</span>
-                  </div>
-                  <div className="receipt-meta-row" style={{ borderBottom: '1px dashed #000', paddingBottom: '0.4rem' }}>
-                    <span>Tel:</span>
-                    <span>{activePOSInvoice.customerPhone}</span>
-                  </div>
+                    {printFormat === 'thermal' ? (
+                      /* Thermal format */
+                      <div className="receipt-wrapper">
+                        <div className="receipt-card" id="printable-pos-receipt">
+                          <div className="receipt-header">
+                            <h2>VIDALITA</h2>
+                            <p>Termez, Burkhoniddin Marginoniy Street, 29G</p>
+                            <p>Tel: +998 95 359 28 28</p>
+                            <p>Email: info@turkglobalcenter.uz</p>
+                          </div>
 
-                  <table className="receipt-table">
-                    <thead>
-                      <tr>
-                        <th style={{ width: '55%' }}>Mahsulot</th>
-                        <th style={{ width: '15%', textAlign: 'center' }}>Soni</th>
-                        <th style={{ width: '30%', textAlign: 'right' }}>Jami</th>
-                      </tr>
-                    </thead>
-                    <tbody>
-                      {activePOSInvoice.items.map((item, idx) => {
-                        const isPriceChanged = item.originalPrice !== undefined && item.originalPrice !== item.price;
-                        return (
-                          <tr key={idx}>
-                            <td>
-                              <div>{item.name.split(' - ')[0]}</div>
-                              <div style={{ display: 'flex', flexDirection: 'column', gap: '2px', marginTop: '2px' }}>
-                                <span style={{ fontSize: '0.7rem', color: '#555' }}>
-                                  Variant: {item.name.split(' - ')[1] || 'Oddiy'}
-                                </span>
-                                {isPriceChanged ? (
-                                  <span style={{ fontSize: '0.68rem', color: '#D97706', fontWeight: 500 }}>
-                                    Asl narxi: <span style={{ textDecoration: 'line-through', opacity: 0.7 }}>{formatSum(item.originalPrice)}</span> | Yangi: {formatSum(item.price)}
-                                  </span>
+                          <div className="receipt-divider"></div>
+
+                          <div className="receipt-meta-row">
+                            <span>Faktura №:</span>
+                            <strong style={{ fontWeight: 'bold' }}>{activePOSInvoice.id}</strong>
+                          </div>
+                          <div className="receipt-meta-row">
+                            <span>Sana / Vaqt:</span>
+                            <span>{activePOSInvoice.date} {activePOSInvoice.time}</span>
+                          </div>
+                          <div className="receipt-meta-row">
+                            <span>Sotuvchi:</span>
+                            <span>{activePOSInvoice.sellerName || (currentUser ? currentUser.name : "Adizova D. (POS)")}</span>
+                          </div>
+                          <div className="receipt-meta-row">
+                            <span>Mijoz:</span>
+                            <span>{activePOSInvoice.customerName || '—'}</span>
+                          </div>
+                          <div className="receipt-meta-row" style={{ borderBottom: '1px dashed #000', paddingBottom: '0.4rem' }}>
+                            <span>Tel:</span>
+                            <span>{activePOSInvoice.customerPhone || '—'}</span>
+                          </div>
+
+                          <table className="receipt-table">
+                            <thead>
+                              <tr>
+                                <th style={{ width: '55%' }}>Mahsulot</th>
+                                <th style={{ width: '15%', textAlign: 'center' }}>Soni</th>
+                                <th style={{ width: '30%', textAlign: 'right' }}>Jami</th>
+                              </tr>
+                            </thead>
+                            <tbody>
+                              {chunks[0].map((item, idx) => {
+                                const isPriceChanged = item.originalPrice !== undefined && item.originalPrice !== item.price;
+                                return (
+                                  <tr key={idx}>
+                                    <td>
+                                      <div>{item.name.split(' - ')[0]}</div>
+                                      <div style={{ display: 'flex', flexDirection: 'column', gap: '2px', marginTop: '2px' }}>
+                                        <span style={{ fontSize: '0.7rem', color: '#555' }}>
+                                          Variant: {item.name.split(' - ')[1] || 'Oddiy'}
+                                        </span>
+                                        {isPriceChanged ? (
+                                          <span style={{ fontSize: '0.68rem', color: '#D97706', fontWeight: 500 }}>
+                                            Asl narxi: <span style={{ textDecoration: 'line-through', opacity: 0.7 }}>{formatSum(item.originalPrice)}</span> | Yangi: {formatSum(item.price)}
+                                          </span>
+                                        ) : (
+                                          <span style={{ fontSize: '0.68rem', color: '#777' }}>
+                                            Narxi: {formatSum(item.price)}
+                                          </span>
+                                        )}
+                                      </div>
+                                    </td>
+                                    <td style={{ textAlign: 'center' }}>{item.qty}</td>
+                                    <td style={{ textAlign: 'right' }}>{formatSum(item.price * item.qty)}</td>
+                                  </tr>
+                                );
+                              })}
+                            </tbody>
+                          </table>
+
+                          <div className="receipt-divider"></div>
+
+                          <div className="receipt-total-section">
+                            <div className="receipt-total-row">
+                              <span>Oraliq jami (Subtotal):</span>
+                              <span>{formatSum(activePOSInvoice.subtotal)}</span>
+                            </div>
+                            {activePOSInvoice.discountAmount > 0 && (
+                              <div className="receipt-total-row">
+                                <span>Chegirma {activePOSInvoice.discountPercent > 0 ? `(${activePOSInvoice.discountPercent}%)` : ''}:</span>
+                                <span>-{formatSum(activePOSInvoice.discountAmount)}</span>
+                              </div>
+                            )}
+                            <div className="receipt-total-row grand-total">
+                              <span>TO'LANDI JAMI:</span>
+                              <span>{formatSum(activePOSInvoice.totalAmount)}</span>
+                            </div>
+                          </div>
+
+                          <div className="receipt-divider" style={{ borderTop: '1px dashed #000' }}></div>
+                          <div className="receipt-meta-row" style={{ marginTop: '0.2rem' }}>
+                            <span>To'lov turi:</span>
+                            <strong style={{ fontWeight: 'bold' }}>{activePOSInvoice.paymentMethod}</strong>
+                          </div>
+
+                          <div className="receipt-footer">
+                            <p>Xaridingiz uchun rahmat!</p>
+                            <p>Kosmetika vositalari yaroqlilik muddatlarini doimo tekshiring.</p>
+                            <p style={{ marginTop: '0.5rem', fontSize: '0.65rem', fontFamily: 'sans-serif', color: 'var(--color-text-light)' }}>
+                              Vidalita
+                            </p>
+                          </div>
+                        </div>
+                      </div>
+                    ) : (
+                      /* A4 Multi-page format */
+                      <div className="a4-invoice-container">
+                        {chunks.map((pageItems, pageIdx) => {
+                          const isFirstPage = pageIdx === 0;
+                          const isLastPage = pageIdx === totalPages - 1;
+                          
+                          // Calculate cumulative items count to get correct row indexing
+                          let startIndex = 0;
+                          for (let i = 0; i < pageIdx; i++) {
+                            startIndex += chunks[i].length;
+                          }
+
+                          // Calculate page subtotal
+                          const pageSubtotal = pageItems.reduce((sum, item) => sum + (item.price * item.qty), 0);
+                          
+                          // Calculate cumulative subtotal
+                          let cumulativeSubtotalCurrent = 0;
+                          for (let i = 0; i <= pageIdx; i++) {
+                            cumulativeSubtotalCurrent += chunks[i].reduce((sum, item) => sum + (item.price * item.qty), 0);
+                          }
+
+                          return (
+                            <div className="a4-page" key={pageIdx}>
+                              <div>
+                                {/* Header */}
+                                {isFirstPage ? (
+                                  <div className="a4-header">
+                                    <div className="a4-logo-side">
+                                      <h2>VIDALITA</h2>
+                                      <p>Termez, Burkhoniddin Marginoniy Street, 29G</p>
+                                      <p>Tel: +998 95 359 28 28 | Email: info@turkglobalcenter.uz</p>
+                                    </div>
+                                    <div className="a4-title-side">
+                                      <h1>FAKTURA</h1>
+                                      <p>Tijorat hujjati / Invoice</p>
+                                    </div>
+                                  </div>
                                 ) : (
-                                  <span style={{ fontSize: '0.68rem', color: '#777' }}>
-                                    Narxi: {formatSum(item.price)}
-                                  </span>
+                                  <div className="a4-header" style={{ marginBottom: '1.5rem', borderBottom: '1px solid #cbd5e1', paddingBottom: '0.5rem' }}>
+                                    <div className="a4-logo-side">
+                                      <h3 style={{ margin: 0, fontSize: '1.2rem', color: '#2563eb' }}>VIDALITA</h3>
+                                    </div>
+                                    <div className="a4-title-side">
+                                      <span style={{ fontSize: '0.85rem', color: '#64748b' }}>
+                                        Faktura №: <strong>{activePOSInvoice.id}</strong> | Sahifa {pageIdx + 1}/{totalPages}
+                                      </span>
+                                    </div>
+                                  </div>
+                                )}
+
+                                {/* Meta Info Grid (First page only) */}
+                                {isFirstPage && (
+                                  <div className="a4-meta-grid">
+                                    <div className="a4-meta-block">
+                                      <h3>Faktura Ma'lumotlari</h3>
+                                      <div className="a4-meta-row">
+                                        <span>Faktura №:</span>
+                                        <span>{activePOSInvoice.id}</span>
+                                      </div>
+                                      <div className="a4-meta-row">
+                                        <span>Sana va vaqt:</span>
+                                        <span>{activePOSInvoice.date} {activePOSInvoice.time}</span>
+                                      </div>
+                                      <div className="a4-meta-row">
+                                        <span>Sotuvchi (Operator):</span>
+                                        <span>{activePOSInvoice.sellerName || (currentUser ? currentUser.name : "Adizova D. (POS)")}</span>
+                                      </div>
+                                    </div>
+                                    <div className="a4-meta-block">
+                                      <h3>Mijoz Ma'lumotlari</h3>
+                                      <div className="a4-meta-row">
+                                        <span>Mijoz ismi:</span>
+                                        <span>{activePOSInvoice.customerName || '—'}</span>
+                                      </div>
+                                      <div className="a4-meta-row">
+                                        <span>Telefon raqami:</span>
+                                        <span>{activePOSInvoice.customerPhone || '—'}</span>
+                                      </div>
+                                      <div className="a4-meta-row">
+                                        <span>To'lov turi:</span>
+                                        <span>{activePOSInvoice.paymentMethod}</span>
+                                      </div>
+                                    </div>
+                                  </div>
+                                )}
+
+                                {/* Products Table */}
+                                <div className="a4-table-wrapper">
+                                  <table className="a4-table">
+                                    <thead>
+                                      <tr>
+                                        <th style={{ width: '5%', textAlign: 'center' }}>T/r</th>
+                                        <th style={{ width: '45%' }}>Mahsulot nomi / Tavsifi</th>
+                                        <th style={{ width: '18%', textAlign: 'right' }}>Sotish narxi</th>
+                                        <th style={{ width: '12%', textAlign: 'center' }}>Soni</th>
+                                        <th style={{ width: '20%', textAlign: 'right' }}>Jami narxi</th>
+                                      </tr>
+                                    </thead>
+                                    <tbody>
+                                      {pageItems.map((item, subIdx) => {
+                                        const globalIdx = startIndex + subIdx;
+                                        const isPriceChanged = item.originalPrice !== undefined && item.originalPrice !== item.price;
+                                        return (
+                                          <tr key={subIdx}>
+                                            <td style={{ textAlign: 'center' }}>{globalIdx + 1}</td>
+                                            <td>
+                                              <div style={{ fontWeight: 600 }}>{item.name.split(' - ')[0]}</div>
+                                              <div style={{ fontSize: '0.75rem', color: '#64748b', marginTop: '2px' }}>
+                                                Variant: {item.name.split(' - ')[1] || 'Oddiy'}
+                                              </div>
+                                            </td>
+                                            <td style={{ textAlign: 'right' }}>
+                                              {isPriceChanged ? (
+                                                <div>
+                                                  <div style={{ textDecoration: 'line-through', fontSize: '0.75rem', color: '#94a3b8' }}>
+                                                    {formatSum(item.originalPrice)}
+                                                  </div>
+                                                  <div style={{ color: '#D97706', fontWeight: 600 }}>
+                                                    {formatSum(item.price)}
+                                                  </div>
+                                                </div>
+                                              ) : (
+                                                formatSum(item.price)
+                                              )}
+                                            </td>
+                                            <td style={{ textAlign: 'center' }}>{item.qty}</td>
+                                            <td style={{ textAlign: 'right', fontWeight: 600 }}>{formatSum(item.price * item.qty)}</td>
+                                          </tr>
+                                        );
+                                      })}
+                                    </tbody>
+                                  </table>
+                                </div>
+
+                                {/* Carry Forward Subtotal (if more pages follow) */}
+                                {!isLastPage && (
+                                  <div className="a4-carry-forward">
+                                    Ko'chma jami (Subtotal carried forward): {formatSum(cumulativeSubtotalCurrent)}
+                                  </div>
                                 )}
                               </div>
-                            </td>
-                            <td style={{ textAlign: 'center' }}>{item.qty}</td>
-                            <td style={{ textAlign: 'right' }}>{formatSum(item.price * item.qty)}</td>
-                          </tr>
-                        );
-                      })}
-                    </tbody>
-                  </table>
 
-                  <div className="receipt-divider"></div>
+                              {/* Footer elements */}
+                              <div>
+                                {isLastPage && (
+                                  <>
+                                    {/* Totals Section */}
+                                    <div className="a4-totals-section">
+                                      <table className="a4-totals-table">
+                                        <tbody>
+                                          <tr>
+                                            <td>Oraliq jami (Subtotal):</td>
+                                            <td style={{ textAlign: 'right', fontWeight: 600 }}>{formatSum(activePOSInvoice.subtotal)}</td>
+                                          </tr>
+                                          {activePOSInvoice.discountAmount > 0 && (
+                                            <tr>
+                                              <td>Chegirma {activePOSInvoice.discountPercent > 0 ? `(${activePOSInvoice.discountPercent}%)` : ''}:</td>
+                                              <td style={{ textAlign: 'right', fontWeight: 600, color: '#dc2626' }}>-{formatSum(activePOSInvoice.discountAmount)}</td>
+                                            </tr>
+                                          )}
+                                          <tr className="total-row">
+                                            <td>TO'LANDI JAMI:</td>
+                                            <td style={{ textAlign: 'right' }}>{formatSum(activePOSInvoice.totalAmount)}</td>
+                                          </tr>
+                                        </tbody>
+                                      </table>
+                                    </div>
 
-                  <div className="receipt-total-section">
-                    <div className="receipt-total-row">
-                      <span>Oraliq jami (Subtotal):</span>
-                      <span>{formatSum(activePOSInvoice.subtotal)}</span>
-                    </div>
-                    {activePOSInvoice.discountAmount > 0 && (
-                      <div className="receipt-total-row">
-                        <span>Chegirma {activePOSInvoice.discountPercent > 0 ? `(${activePOSInvoice.discountPercent}%)` : ''}:</span>
-                        <span>-{formatSum(activePOSInvoice.discountAmount)}</span>
+                                    {/* Signatures */}
+                                    <div className="a4-signatures">
+                                      <div className="signature-block">
+                                        <div className="signature-line"></div>
+                                        <div className="signature-label">Tashkilot rahbari / Topshirdi (M.O'.)</div>
+                                      </div>
+                                      <div className="signature-block">
+                                        <div className="signature-line"></div>
+                                        <div className="signature-label">Mijoz / Qabul qildi</div>
+                                      </div>
+                                    </div>
+                                  </>
+                                )}
+
+                                {/* Page Footer Note */}
+                                <div className="a4-footer">
+                                  <p>Xaridingiz uchun rahmat! Kosmetika vositalari yaroqlilik muddatlarini doimo tekshiring.</p>
+                                </div>
+
+                                {/* Page Number */}
+                                <div className="a4-page-number">
+                                  Sahifa {pageIdx + 1} / {totalPages}
+                                </div>
+                              </div>
+                            </div>
+                          );
+                        })}
                       </div>
                     )}
-                    <div className="receipt-total-row grand-total">
-                      <span>TO'LANDI JAMI:</span>
-                      <span>{formatSum(activePOSInvoice.totalAmount)}</span>
-                    </div>
                   </div>
-
-                  <div className="receipt-divider" style={{ borderTop: '1px dashed #000' }}></div>
-                  <div className="receipt-meta-row" style={{ marginTop: '0.2rem' }}>
-                    <span>To'lov turi:</span>
-                    <strong style={{ fontWeight: 'bold' }}>{activePOSInvoice.paymentMethod}</strong>
-                  </div>
-
-                  <div className="receipt-footer">
-                    <p>Xaridingiz uchun rahmat!</p>
-                    <p>Kosmetika vositalari yaroqlilik muddatlarini doimo tekshiring.</p>
-                    <p style={{ marginTop: '0.5rem', fontSize: '0.65rem', fontFamily: 'sans-serif', color: 'var(--color-text-light)' }}>
-                      Vidalita
-                    </p>
-                  </div>
-                </div>
-              </div>
+                );
+              })()}
             </div>
 
             <div className="modal-footer">
