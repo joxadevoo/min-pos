@@ -4997,37 +4997,28 @@ service cloud.firestore {
 
                               {/* Footer elements (grouped together to align beautifully) */}
                               <div className="a4-footer-wrapper" style={{ marginTop: 'auto', width: '100%' }}>
-                                {/* Totals Section (ONLY on the last page) */}
+                                {/* Totals Section (ONLY on the last page - single-line layout) */}
                                 {isLastPage && (
-                                  <div className="a4-totals-section" style={{ marginBottom: '1rem', display: 'flex', justifyContent: 'flex-end' }}>
-                                    <table className="a4-totals-table">
-                                      <tbody>
-                                        <tr>
-                                          <td>Oraliq jami (Subtotal):</td>
-                                          <td style={{ textAlign: 'right', fontWeight: 600 }}>{formatSum(activePOSInvoice.subtotal)}</td>
-                                        </tr>
-                                        {activePOSInvoice.discountAmount > 0 && (
-                                          <tr>
-                                            <td>Chegirma {activePOSInvoice.discountPercent > 0 ? `(${activePOSInvoice.discountPercent}%)` : ''}:</td>
-                                            <td style={{ textAlign: 'right', fontWeight: 600, color: '#dc2626' }}>-{formatSum(activePOSInvoice.discountAmount)}</td>
-                                          </tr>
-                                        )}
-                                        <tr className="total-row">
-                                          <td>TO'LANDI JAMI:</td>
-                                          <td style={{ textAlign: 'right' }}>{formatSum(activePOSInvoice.totalAmount)}</td>
-                                        </tr>
-                                      </tbody>
-                                    </table>
+                                  <div className="a4-totals-section" style={{ marginBottom: '1rem', display: 'flex', justifyContent: 'flex-end', alignItems: 'center', gap: '1.5rem', fontSize: '11px', fontWeight: 'bold', borderTop: '1px solid #cbd5e1', paddingTop: '8px' }}>
+                                    <span style={{ color: '#555555' }}>Oraliq jami (Subtotal): {formatSum(activePOSInvoice.subtotal)}</span>
+                                    {activePOSInvoice.discountAmount > 0 && (
+                                      <span style={{ color: '#dc2626' }}>
+                                        Chegirma {activePOSInvoice.discountPercent > 0 ? `(${activePOSInvoice.discountPercent}%)` : ''}: -{formatSum(activePOSInvoice.discountAmount)}
+                                      </span>
+                                    )}
+                                    <span style={{ fontSize: '13px', color: '#000000', borderLeft: '1px solid #cbd5e1', paddingLeft: '1.5rem' }}>
+                                      TO'LANDI JAMI: {formatSum(activePOSInvoice.totalAmount)}
+                                    </span>
                                   </div>
                                 )}
 
                                 {/* Page Footer Note */}
-                                <div className="a4-footer" style={{ borderTop: '1px solid #cbd5e1', paddingTop: '8px', textAlign: 'center', fontSize: '11px', color: '#64748b' }}>
+                                <div className="a4-footer" style={{ borderTop: isLastPage ? 'none' : '1px solid #cbd5e1', paddingTop: isLastPage ? '0' : '8px', textAlign: 'center', fontSize: '11px', color: '#64748b' }}>
                                   <p style={{ margin: 0 }}>Xaridingiz uchun rahmat! Kosmetika vositalari yaroqlilik muddatlarini doimo tekshiring.</p>
                                 </div>
 
                                 {/* Page Number */}
-                                <div className="a4-page-number" style={{ position: 'absolute', bottom: '15px', right: '30px', fontSize: '11px', color: '#64748b' }}>
+                                <div className="a4-page-number" style={{ position: 'absolute', bottom: '12px', right: '25px', fontSize: '10px', color: '#64748b' }}>
                                   Sahifa {pageIdx + 1} / {totalPages}
                                 </div>
                               </div>

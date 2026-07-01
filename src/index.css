@@ -1594,8 +1594,8 @@ body {
     padding: 0 !important; /* Margin is handled by browser @page margin */
     margin: 0 !important;
     width: 100% !important;
-    min-height: 265mm !important; /* height of standard A4 minus margins to fit exactly without spillover */
-    height: 265mm !important; /* Fixed print height to allow flexbox layout to stretch exactly */
+    min-height: 255mm !important; /* height of standard A4 minus margins to fit exactly without spillover */
+    height: 255mm !important; /* Fixed print height to allow flexbox layout to stretch exactly */
     page-break-after: always;
     display: flex !important; /* Use flexbox to align top and bottom sections automatically */
     flex-direction: column !important;
