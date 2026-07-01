@@ -4854,7 +4854,7 @@ service cloud.firestore {
                                     <table style={{ width: '100%', borderCollapse: 'collapse', border: 'none', background: 'none' }}>
                                       <tbody>
                                         <tr style={{ border: 'none', background: 'none' }}>
-                                          <td style={{ width: '55%', padding: '0', border: 'none', background: 'none', textAlign: 'left' }}>
+                                          <td style={{ width: '55%', padding: '0', border: 'none', background: 'none', textAlign: 'left', verticalAlign: 'top' }}>
                                             <h1 style={{ fontSize: '24pt', fontWeight: 'bold', color: '#1a365d', margin: '0 0 5px 0', fontFamily: 'Outfit, sans-serif' }}>FAKTURA</h1>
                                             <div style={{ fontSize: '9.5pt', color: '#4a5568', lineHeight: '1.4' }}>
                                               <strong>OOO "Global Trading Solutions"</strong><br />
@@ -4877,6 +4877,14 @@ service cloud.firestore {
                                                   <td style={{ color: '#718096', fontWeight: 500, paddingRight: '10px', paddingBottom: '4px', textAlign: 'right' }}>To'lov turi:</td>
                                                   <td style={{ color: '#2d3748', textAlign: 'left', paddingBottom: '4px' }}>{activePOSInvoice.paymentMethod}</td>
                                                 </tr>
+                                                {(activePOSInvoice.customerName || activePOSInvoice.customerPhone) && (
+                                                  <tr style={{ border: 'none', background: 'none' }}>
+                                                    <td style={{ color: '#718096', fontWeight: 500, paddingRight: '10px', paddingBottom: '4px', textAlign: 'right' }}>Mijoz:</td>
+                                                    <td style={{ color: '#2d3748', textAlign: 'left', paddingBottom: '4px', fontWeight: 'bold' }}>
+                                                      {activePOSInvoice.customerName || 'Mijoz'} {activePOSInvoice.customerPhone ? `(${activePOSInvoice.customerPhone})` : ''}
+                                                    </td>
+                                                  </tr>
+                                                )}
                                               </tbody>
                                             </table>
                                           </td>
@@ -4904,20 +4912,6 @@ service cloud.firestore {
 
                               {/* 2. Body Section */}
                               <div className="a4-body-wrapper" style={{ flexGrow: 1, width: '100%' }}>
-                                {/* Meta Info Grid (First page only) */}
-                                {isFirstPage && (
-                                  <div style={{ marginBottom: '15px', width: '100%' }}>
-                                    <div style={{ fontSize: '11pt', textTransform: 'uppercase', color: '#2b6cb0', marginBottom: '6px', fontWeight: 'bold', borderBottom: '2px solid #edf2f7', paddingBottom: '3px', width: '100%' }}>
-                                      Buyurtmachi / Kimga
-                                    </div>
-                                    <div style={{ fontSize: '9.5pt', color: '#4a5568', lineHeight: '1.4' }}>
-                                      <strong>{activePOSInvoice.customerName || 'Mijoz (Ismi ko\'rsatilmagan)'}</strong><br />
-                                      {activePOSInvoice.customerPhone ? `Tel: ${activePOSInvoice.customerPhone}` : 'Telefon: —'}<br />
-                                      Sotuvchi: {activePOSInvoice.sellerName || (currentUser ? currentUser.name : "Adizova D. (POS)")}
-                                    </div>
-                                  </div>
-                                )}
-
                                 {/* Products Table */}
                                 <div className="a4-table-wrapper" style={{ width: '100%' }}>
                                   <table className="a4-table" style={{ width: '100%', borderCollapse: 'collapse', fontSize: '9.5pt' }}>
