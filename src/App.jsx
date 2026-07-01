@@ -5018,7 +5018,7 @@ service cloud.firestore {
                                 </div>
 
                                 {/* Page Number */}
-                                <div className="a4-page-number" style={{ position: 'absolute', bottom: '12px', right: '25px', fontSize: '10px', color: '#64748b' }}>
+                                <div className="a4-page-number" style={{ marginTop: '8px', textAlign: 'center', fontSize: '10px', color: '#64748b' }}>
                                   Sahifa {pageIdx + 1} / {totalPages}
                                 </div>
                               </div>
