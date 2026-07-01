@@ -4855,9 +4855,8 @@ service cloud.firestore {
                                       <tbody>
                                         <tr style={{ border: 'none', background: 'none' }}>
                                           <td style={{ width: '55%', padding: '0', border: 'none', background: 'none', textAlign: 'left', verticalAlign: 'top' }}>
-                                            <h1 style={{ fontSize: '24pt', fontWeight: 'bold', color: '#1a365d', margin: '0 0 5px 0', fontFamily: 'Outfit, sans-serif' }}>FAKTURA</h1>
+                                            <h1 style={{ fontSize: '24pt', fontWeight: 'bold', color: '#1a365d', margin: '0 0 5px 0', fontFamily: 'Outfit, sans-serif' }}>VIDALITA</h1>
                                             <div style={{ fontSize: '9.5pt', color: '#4a5568', lineHeight: '1.4' }}>
-                                              <strong>OOO "Global Trading Solutions"</strong><br />
                                               Termez, Burkhoniddin Marginoniy Street, 29G<br />
                                               Tel: +998 95 359 28 28 | Email: info@turkglobalcenter.uz
                                             </div>
@@ -4999,12 +4998,8 @@ service cloud.firestore {
                                 )}
 
                                 {/* Page Footer Note */}
-                                <div className="a4-footer" style={{ borderTop: '1px dashed #e2e8f0', paddingTop: '10px', textAlign: 'left', fontSize: '8.5pt', color: '#718096' }}>
-                                  <div style={{ fontWeight: 'bold', color: '#4a5568', marginBottom: '3px' }}>To'lov shartlari va izohlar:</div>
-                                  <p style={{ margin: 0, fontSize: '8pt', lineHeight: '1.4' }}>
-                                    1. Xaridingiz uchun rahmat! Kosmetika vositalari yaroqlilik muddatlarini doimo tekshiring.<br />
-                                    2. Xarid qilingan kosmetika va gigiyena vositalari qaytarib olinmaydi va almashtirilmaydi.
-                                  </p>
+                                <div className="a4-footer" style={{ borderTop: '1px dashed #e2e8f0', paddingTop: '10px', textAlign: 'center', fontSize: '10pt', color: '#64748b' }}>
+                                  <p style={{ margin: 0 }}>Xaridingiz uchun rahmat! Kosmetika vositalari yaroqlilik muddatlarini doimo tekshiring.</p>
                                 </div>
 
                                 {/* Page Number */}
