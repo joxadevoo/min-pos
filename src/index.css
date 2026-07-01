@@ -1527,7 +1527,7 @@ body {
 @media print {
   @page {
     size: A4;
-    margin: 12mm 15mm !important; /* Safe print margins */
+    margin: 15mm 15mm 15mm 15mm !important; /* Set standard safe margins for browser print */
   }
   body {
     background: #ffffff !important;
@@ -1594,15 +1594,13 @@ body {
     padding: 0 !important; /* Print margins are fully handled by browser via @page margin! */
     margin: 0 !important;
     width: 100% !important; /* Stretches to printable width */
-    height: 100vh !important; /* Matches printable page height exactly, regardless of headers/footers settings! */
+    height: auto !important; /* Let height flow naturally to avoid layout overflows! */
+    min-height: auto !important;
     page-break-after: always;
-    display: flex !important; /* Flexbox alignment works flawlessly with fixed 100vh height */
-    flex-direction: column !important;
-    justify-content: space-between !important;
+    display: block !important; /* Standard block display for 100% print compatibility */
     position: relative !important;
     box-sizing: border-box !important;
     background: #ffffff !important;
-    overflow: hidden !important;
   }
   .a4-page:last-child {
     page-break-after: avoid;
@@ -1610,7 +1608,7 @@ body {
   .a4-footer-wrapper {
     position: relative !important;
     width: 100% !important;
-    margin-top: auto !important; /* Pushes the footer to the bottom of the page in flex layout */
+    margin-top: 30px !important; /* Clean natural gap from the table */
   }
   /* Force all colors to black to ensure print visibility */
   .a4-logo-side h2 {
