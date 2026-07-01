@@ -4884,8 +4884,8 @@ service cloud.firestore {
                             cumulativeSubtotalCurrent += chunks[i].reduce((sum, item) => sum + (item.price * item.qty), 0);
                           }
 
-                          const dash = { borderTop: '1px dashed #000', margin: '8px 0', height: 0 };
-                          const line = { borderTop: '1px solid #000', margin: '8px 0', height: 0 };
+                          const dash = { borderTop: '1px dashed #000', margin: '4px 0', height: 0 };
+                          const line = { borderTop: '1px solid #000', margin: '4px 0', height: 0 };
 
                           return (
                             <div
@@ -4895,10 +4895,10 @@ service cloud.firestore {
                             >
                               {/* ── HEADER ── */}
                               {isFirstPage ? (
-                                <div style={{ textAlign: 'center', paddingBottom: '8px' }}>
-                                  <div style={{ fontSize: '20pt', fontWeight: 'bold', letterSpacing: '5px' }}>VIDALITA</div>
-                                  <div style={{ fontSize: '9pt', marginTop: '3px' }}>Termez, Burkhoniddin Marginoniy ko'chasi, 29G</div>
-                                  <div style={{ fontSize: '9pt' }}>Tel: +998 95 359 28 28</div>
+                                <div style={{ textAlign: 'center', paddingBottom: '4px' }}>
+                                  <div style={{ fontSize: '16pt', fontWeight: 'bold', letterSpacing: '4px' }}>VIDALITA</div>
+                                  <div style={{ fontSize: '8pt', marginTop: '1px' }}>Termez, Burkhoniddin Marginoniy ko'chasi, 29G</div>
+                                  <div style={{ fontSize: '8pt' }}>Tel: +998 95 359 28 28</div>
                                   <div style={line} />
                                   <div style={{ fontSize: '11pt', fontWeight: 'bold' }}>FAKTURA № {activePOSInvoice.id}</div>
                                   <div style={dash} />
@@ -4955,14 +4955,14 @@ service cloud.firestore {
                                     const isPriceChanged = item.originalPrice !== undefined && item.originalPrice !== item.price;
                                     return (
                                       <tr key={subIdx}>
-                                        <td style={{ padding: '6px 3px', textAlign: 'center', border: 'none', borderBottom: '1px dashed #999' }}>{globalIdx + 1}</td>
-                                        <td style={{ padding: '6px 4px', border: 'none', borderBottom: '1px dashed #999' }}>
+                                        <td style={{ padding: '4px 3px', textAlign: 'center', border: 'none', borderBottom: '1px dashed #999' }}>{globalIdx + 1}</td>
+                                        <td style={{ padding: '4px 4px', border: 'none', borderBottom: '1px dashed #999' }}>
                                           <div style={{ fontWeight: 'bold' }}>{item.name.split(' - ')[0]}</div>
                                           {item.name.split(' - ')[1] && (
                                             <div style={{ fontSize: '8pt' }}>Variant: {item.name.split(' - ')[1]}</div>
                                           )}
                                         </td>
-                                        <td style={{ padding: '6px 4px', textAlign: 'right', border: 'none', borderBottom: '1px dashed #999' }}>
+                                        <td style={{ padding: '4px 4px', textAlign: 'right', border: 'none', borderBottom: '1px dashed #999' }}>
                                           {isPriceChanged ? (
                                             <span>
                                               <span style={{ textDecoration: 'line-through', fontSize: '7.5pt', display: 'block' }}>{formatSum(item.originalPrice)}</span>
@@ -4970,8 +4970,8 @@ service cloud.firestore {
                                             </span>
                                           ) : formatSum(item.price)}
                                         </td>
-                                        <td style={{ padding: '6px 3px', textAlign: 'center', border: 'none', borderBottom: '1px dashed #999' }}>{item.qty}</td>
-                                        <td style={{ padding: '6px 4px', textAlign: 'right', fontWeight: 'bold', border: 'none', borderBottom: '1px dashed #999' }}>
+                                        <td style={{ padding: '4px 3px', textAlign: 'center', border: 'none', borderBottom: '1px dashed #999' }}>{item.qty}</td>
+                                        <td style={{ padding: '4px 4px', textAlign: 'right', fontWeight: 'bold', border: 'none', borderBottom: '1px dashed #999' }}>
                                           {formatSum(item.price * item.qty)}
                                         </td>
                                       </tr>
@@ -4982,14 +4982,14 @@ service cloud.firestore {
 
                               {/* Ko'chma jami (agar keyingi sahifa bo'lsa) */}
                               {!isLastPage && (
-                                <div style={{ textAlign: 'right', fontSize: '8.5pt', fontStyle: 'italic', borderTop: '1px dashed #000', paddingTop: '6px', marginTop: '6px' }}>
+                                <div style={{ textAlign: 'right', fontSize: '8pt', fontStyle: 'italic', borderTop: '1px dashed #000', paddingTop: '4px', marginTop: '4px' }}>
                                   Ko'chma jami: <strong>{formatSum(cumulativeSubtotalCurrent)}</strong>
                                 </div>
                               )}
 
                               {/* ── FOOTER — to'g'ridan-to'g'ri tovarlardan keyin ── */}
                               {isLastPage && (
-                                <div style={{ marginTop: '8px' }}>
+                                <div style={{ marginTop: '4px' }}>
                                   <div style={dash} />
                                   <table style={{ width: '100%', borderCollapse: 'collapse', border: 'none', fontSize: '9pt' }}>
                                     <tbody>
@@ -5025,7 +5025,7 @@ service cloud.firestore {
                               )}
 
                               {/* Rahmatnoma */}
-                              <div style={{ textAlign: 'center', fontSize: '9pt', paddingTop: '10px' }}>
+                              <div style={{ textAlign: 'center', fontSize: '8.5pt', paddingTop: '6px' }}>
                                 <div style={dash} />
                                 <div style={{ fontWeight: 'bold' }}>Xaridingiz uchun rahmat!</div>
                                 <div style={{ fontSize: '8pt', marginTop: '2px' }}>Kosmetika vositalari yaroqlilik muddatlarini doimo tekshiring.</div>

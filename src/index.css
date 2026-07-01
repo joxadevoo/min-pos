@@ -1599,15 +1599,13 @@ body {
   .a4-page {
     border: none !important;
     box-shadow: none !important;
-    padding: 0 !important; /* Print margins are fully handled by browser via @page margin! */
+    padding: 6mm 8mm !important;
     margin: 0 !important;
-    width: 100% !important; /* Stretches to printable width */
-    height: 255mm !important; /* Fixed print height matching printable viewport bounds */
+    width: 100% !important;
+    height: auto !important;
+    min-height: unset !important;
     page-break-after: always;
-    display: flex !important; /* Flexbox alignment to pin footer wrapper */
-    flex-direction: column !important;
-    justify-content: space-between !important;
-    position: relative !important;
+    display: block !important;
     box-sizing: border-box !important;
     background: #ffffff !important;
   }
@@ -1674,19 +1672,17 @@ body {
 
 .a4-page {
   width: 790px;
-  min-height: 1080px;
+  min-height: 400px;
   background-color: #FFFFFF;
   border: 1px solid #D6CDC5;
   box-shadow: 0 4px 15px rgba(0,0,0,0.05);
-  padding: 3.5rem 3rem;
+  padding: 1.5rem 2rem;
   font-family: 'Outfit', 'Inter', -apple-system, sans-serif;
   color: #1a1a1a;
   font-size: 0.88rem;
-  line-height: 1.5;
+  line-height: 1.4;
   box-sizing: border-box;
-  display: flex;
-  flex-direction: column;
-  justify-content: space-between;
+  display: block;
   position: relative;
 }
 
