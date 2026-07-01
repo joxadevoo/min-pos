@@ -4673,8 +4673,8 @@ service cloud.firestore {
             <div className="modal-body" style={{ padding: '1rem', backgroundColor: 'var(--bg-primary)', overflowY: 'auto', maxHeight: '75vh' }}>
               {(() => {
                 const items = activePOSInvoice.items || [];
-                const firstPageLimit = 8;
-                const nextPageLimit = 14;
+                const firstPageLimit = 20;
+                const nextPageLimit  = 25;
                 const chunks = [];
                 
                 if (printFormat === 'thermal') {
