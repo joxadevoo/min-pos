@@ -4993,36 +4993,34 @@ service cloud.firestore {
                                     Ko'chma jami (Subtotal carried forward): {formatSum(cumulativeSubtotalCurrent)}
                                   </div>
                                 )}
+
+                                {/* Totals Section (ONLY on the last page, flows naturally right after table) */}
+                                {isLastPage && (
+                                  <div className="a4-totals-section" style={{ marginTop: '1.5rem' }}>
+                                    <table className="a4-totals-table">
+                                      <tbody>
+                                        <tr>
+                                          <td>Oraliq jami (Subtotal):</td>
+                                          <td style={{ textAlign: 'right', fontWeight: 600 }}>{formatSum(activePOSInvoice.subtotal)}</td>
+                                        </tr>
+                                        {activePOSInvoice.discountAmount > 0 && (
+                                          <tr>
+                                            <td>Chegirma {activePOSInvoice.discountPercent > 0 ? `(${activePOSInvoice.discountPercent}%)` : ''}:</td>
+                                            <td style={{ textAlign: 'right', fontWeight: 600, color: '#dc2626' }}>-{formatSum(activePOSInvoice.discountAmount)}</td>
+                                          </tr>
+                                        )}
+                                        <tr className="total-row">
+                                          <td>TO'LANDI JAMI:</td>
+                                          <td style={{ textAlign: 'right' }}>{formatSum(activePOSInvoice.totalAmount)}</td>
+                                        </tr>
+                                      </tbody>
+                                    </table>
+                                  </div>
+                                )}
                               </div>
 
                               {/* Footer elements */}
                               <div className="a4-footer-wrapper">
-                                {isLastPage && (
-                                  <>
-                                    {/* Totals Section */}
-                                    <div className="a4-totals-section">
-                                      <table className="a4-totals-table">
-                                        <tbody>
-                                          <tr>
-                                            <td>Oraliq jami (Subtotal):</td>
-                                            <td style={{ textAlign: 'right', fontWeight: 600 }}>{formatSum(activePOSInvoice.subtotal)}</td>
-                                          </tr>
-                                          {activePOSInvoice.discountAmount > 0 && (
-                                            <tr>
-                                              <td>Chegirma {activePOSInvoice.discountPercent > 0 ? `(${activePOSInvoice.discountPercent}%)` : ''}:</td>
-                                              <td style={{ textAlign: 'right', fontWeight: 600, color: '#dc2626' }}>-{formatSum(activePOSInvoice.discountAmount)}</td>
-                                            </tr>
-                                          )}
-                                          <tr className="total-row">
-                                            <td>TO'LANDI JAMI:</td>
-                                            <td style={{ textAlign: 'right' }}>{formatSum(activePOSInvoice.totalAmount)}</td>
-                                          </tr>
-                                        </tbody>
-                                      </table>
-                                    </div>
-                                  </>
-                                )}
-
                                 {/* Page Footer Note */}
                                 <div className="a4-footer">
                                   <p>Xaridingiz uchun rahmat! Kosmetika vositalari yaroqlilik muddatlarini doimo tekshiring.</p>
