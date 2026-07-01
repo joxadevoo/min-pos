@@ -1595,9 +1595,11 @@ body {
     margin: 0 !important;
     width: 100% !important;
     min-height: 265mm !important; /* height of standard A4 minus margins to fit exactly without spillover */
-    height: 265mm !important; /* Fixed print height to allow absolute positioning of footer */
+    height: 265mm !important; /* Fixed print height to allow flexbox layout to stretch exactly */
     page-break-after: always;
-    display: block !important; /* Standard block display to bypass flexbox print bugs */
+    display: flex !important; /* Use flexbox to align top and bottom sections automatically */
+    flex-direction: column !important;
+    justify-content: space-between !important;
     position: relative !important;
     box-sizing: border-box !important;
     background: #ffffff !important;
@@ -1606,10 +1608,9 @@ body {
     page-break-after: avoid;
   }
   .a4-footer-wrapper {
-    position: absolute !important;
-    bottom: 0 !important;
-    left: 0 !important;
+    position: relative !important;
     width: 100% !important;
+    margin-top: auto !important; /* Pushes the footer to the bottom of the page in flex layout */
   }
   /* Force all colors to black to ensure print visibility */
   .a4-logo-side h2 {
