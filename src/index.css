@@ -1527,7 +1527,7 @@ body {
 @media print {
   @page {
     size: A4;
-    margin: 15mm 15mm 15mm 15mm !important; /* Set standard safe margins for browser print */
+    margin: 25mm 15mm 15mm 15mm !important; /* Push header down to ensure visibility */
   }
   body {
     background: #ffffff !important;
