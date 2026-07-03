@@ -260,6 +260,7 @@ export default function App() {
   const [activeModal, setActiveModal] = useState(null);
   const [modalInputs, setModalInputs] = useState({});
   const [modalError, setModalError] = useState('');
+  const [cancellingTrx, setCancellingTrx] = useState(null);
   const [activePOSInvoice, setActivePOSInvoice] = useState(null);
   const [printFormat, setPrintFormat] = useState('a4'); // 'a4' or 'thermal'
 
