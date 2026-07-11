@@ -73,20 +73,29 @@ import {
   query,
   orderBy,
   limit,
-  serverTimestamp
+  serverTimestamp,
+  Timestamp
 } from 'firebase/firestore';
 
 // Data versiyasi — o'zgartirsa eski localStorage avtomatik tozalanadi
 const DATA_VERSION = 'v7-vidalita-tgc-admin-auth-reset-prices';
 
 export default function App() {
-  // --- Eski keshni versiya asosida tozalash ---
+  // --- Eski keshni versiya asosida tozalash (va zaxiralash) ---
   if (localStorage.getItem('beauty_data_version') !== DATA_VERSION) {
-    [
+    const oldVer = localStorage.getItem('beauty_data_version') || 'unknown';
+    const keysToBackup = [
       'beauty_products', 'beauty_raw_materials', 'beauty_bundles',
       'beauty_channels', 'beauty_logs', 'beauty_transactions', 'beauty_cart',
       'beauty_users', 'beauty_current_user'
-    ].forEach(k => localStorage.removeItem(k));
+    ];
+    keysToBackup.forEach(k => {
+      const val = localStorage.getItem(k);
+      if (val) {
+        localStorage.setItem(`backup_${oldVer}_${k}`, val);
+      }
+    });
+    keysToBackup.forEach(k => localStorage.removeItem(k));
     localStorage.setItem('beauty_data_version', DATA_VERSION);
   }
 
@@ -135,9 +144,9 @@ export default function App() {
   const filteredTransactions = transactions.filter(t => {
     // 1. Search filter (ID, Customer name, Phone)
     const matchesSearch = !trxSearchQuery ||
-      t.id.toLowerCase().includes(trxSearchQuery.toLowerCase()) ||
-      t.customerName.toLowerCase().includes(trxSearchQuery.toLowerCase()) ||
-      t.customerPhone.toLowerCase().includes(trxSearchQuery.toLowerCase());
+      (t.id || '').toLowerCase().includes(trxSearchQuery.toLowerCase()) ||
+      (t.customerName || '').toLowerCase().includes(trxSearchQuery.toLowerCase()) ||
+      (t.customerPhone || '').toLowerCase().includes(trxSearchQuery.toLowerCase());
       
     // 2. Date filter (t.date format is YYYY-MM-DD)
     const matchesStartDate = !trxStartDate || t.date >= trxStartDate;
@@ -243,6 +252,73 @@ export default function App() {
   const [posSearchTerm, setPosSearchTerm] = useState('');
   const [posCategoryFilter, setPosCategoryFilter] = useState('All');
   const [selectedCustomer, setSelectedCustomer] = useState({ name: '', phone: '' });
+
+  // --- Smart Assistant Logic ---
+  const getCustomerSmartAssistantSuggestion = () => {
+    const phone = (selectedCustomer.phone || '').replace(/\D/g, '');
+    if (phone.length < 7) return null;
+
+    const customerTrxs = transactions.filter(t => {
+      if (t.status === 'cancelled') return false;
+      const tPhone = (t.customerPhone || '').replace(/\D/g, '');
+      if (tPhone.length < 9) return false;
+      if (phone.length < 9) {
+        return tPhone.endsWith(phone);
+      }
+      return tPhone.slice(-9) === phone.slice(-9);
+    });
+
+    if (customerTrxs.length === 0) return null;
+
+    const categoryLifespans = {
+      'Face': 30,
+      'Hair': 45,
+      'Body': 60
+    };
+    const defaultLifespan = 60;
+
+    const suggestions = [];
+
+    customerTrxs.forEach(t => {
+      if (!t.date || !t.items) return;
+      
+      const purchaseDate = new Date(t.date);
+      if (isNaN(purchaseDate.getTime())) return;
+
+      t.items.forEach(item => {
+        if (!item.name || !item.sku) return;
+
+        const product = products.find(p => p.id === item.productId || p.variants?.some(v => v.sku === item.sku));
+        const category = product?.category || 'General';
+        const lifespan = categoryLifespans[category] || defaultLifespan;
+
+        const depletionDate = new Date(purchaseDate);
+        depletionDate.setDate(depletionDate.getDate() + lifespan);
+
+        const today = new Date();
+        const daysElapsed = Math.round((today - purchaseDate) / (1000 * 60 * 60 * 24));
+
+        if (daysElapsed >= lifespan - 10 && daysElapsed <= lifespan + 30) {
+          suggestions.push({
+            itemName: item.name,
+            sku: item.sku,
+            category,
+            daysElapsed,
+            lifespan,
+            dateStr: t.date,
+            remainingDays: lifespan - daysElapsed
+          });
+        }
+      });
+    });
+
+    if (suggestions.length === 0) return null;
+
+    suggestions.sort((a, b) => Math.abs(a.remainingDays) - Math.abs(b.remainingDays));
+
+    return suggestions[0];
+  };
+
   const [paymentMethod, setPaymentMethod] = useState('Naqd (Cash)');
   const [mixPayCash, setMixPayCash] = useState(0);
   const [mixPayCard, setMixPayCard] = useState(0);
@@ -595,7 +671,54 @@ export default function App() {
       try {
         setFirebaseLoading(true);
 
-        // 1. Versiyani tekshirish o'rniga faqat agar Firestore bo'sh bo'lsa boshlang'ich ma'lumotlarni yuklaymiz
+        // 1. Sync local data to cloud first if they are missing
+        const syncLocalToCloud = async (collectionName, localData) => {
+          if (!localData || localData.length === 0) return;
+          try {
+            const snap = await getDocs(collection(db, collectionName));
+            const cloudIds = new Set(snap.docs.map(d => d.id));
+            const missingLocals = localData.filter(item => item && item.id && !cloudIds.has(item.id));
+            
+            if (missingLocals.length > 0) {
+              console.log(`Syncing ${missingLocals.length} local items to Firestore collection '${collectionName}'...`);
+              const batch = writeBatch(db);
+              missingLocals.forEach(item => {
+                const docRef = doc(db, collectionName, item.id);
+                const data = { ...item };
+                
+                if (collectionName === 'transactions' || collectionName === 'logs') {
+                  if (!data.timestamp) {
+                    if (data.date) {
+                      const timeStr = data.time || "00:00";
+                      try {
+                        data.timestamp = Timestamp.fromDate(new Date(`${data.date}T${timeStr}:00`));
+                      } catch (e) {
+                        data.timestamp = serverTimestamp();
+                      }
+                    } else {
+                      data.timestamp = serverTimestamp();
+                    }
+                  }
+                }
+                batch.set(docRef, data);
+              });
+              await batch.commit();
+              console.log(`Successfully synced local ${collectionName} items to Cloud.`);
+            }
+          } catch (e) {
+            console.error(`Failed to sync ${collectionName} to Cloud:`, e);
+          }
+        };
+
+        // Sync local states to Cloud
+        await syncLocalToCloud('products', products);
+        await syncLocalToCloud('raw_materials', rawMaterials);
+        await syncLocalToCloud('bundles', bundles);
+        await syncLocalToCloud('channels', channels);
+        await syncLocalToCloud('logs', logs);
+        await syncLocalToCloud('transactions', transactions);
+
+        // 2. Versiyani tekshirish o'rniga faqat agar Firestore bo'sh bo'lsa boshlang'ich ma'lumotlarni yuklaymiz
         const oldProducts = await getDocs(collection(db, 'products'));
         if (oldProducts.empty) {
           console.log('Firestore bo\'sh. Boshlang\'ich mahsulotlar yuklanmoqda...');
@@ -3138,6 +3261,35 @@ service cloud.firestore {
                     </div>
                   </div>
 
+                  {/* Smart Assistant Card */}
+                  {(() => {
+                    const suggestion = getCustomerSmartAssistantSuggestion();
+                    if (!suggestion) return null;
+                    return (
+                      <div className="smart-assistant-card" style={{
+                        marginTop: '0.5rem',
+                        marginBottom: '0.5rem',
+                        padding: '0.65rem 0.75rem',
+                        borderRadius: '6px',
+                        backgroundColor: '#FFF2F2',
+                        border: '1px solid #FFA3A3',
+                        boxShadow: '0 2px 4px rgba(239, 68, 68, 0.05)',
+                        display: 'flex',
+                        flexDirection: 'column',
+                        gap: '0.2rem',
+                        animation: 'fadeIn 0.2s ease-in-out'
+                      }}>
+                        <div style={{ display: 'flex', alignItems: 'center', gap: '0.35rem', color: '#DC2626', fontWeight: 600, fontSize: '0.72rem' }}>
+                          <Sparkle size={13} style={{ fill: '#DC2626' }} />
+                          <span>AQLLI TAVSIYA (Smart suggestion)</span>
+                        </div>
+                        <p style={{ fontSize: '0.7rem', color: '#4A4A4A', margin: 0, lineHeight: '1.1rem' }}>
+                          Mijoz <strong>{suggestion.daysElapsed} kun oldin</strong> ({suggestion.dateStr}) <strong>{suggestion.itemName}</strong> ({suggestion.category}) sotib olgan. Bu mahsulot tugagan yoki tugash arafasida bo'lishi mumkin. Yangisini taklif qilib ko'ring!
+                        </p>
+                      </div>
+                    );
+                  })()}
+
                   {/* Clickable Payment Tiles (Cards) */}
                   <div className="form-group" style={{ marginTop: '0.5rem', marginBottom: '0.5rem' }}>
                     <label style={{ fontSize: '0.75rem', fontWeight: 600, display: 'block', marginBottom: '0.25rem' }}>To'lov Usuli (Payment Method)</label>
@@ -3347,7 +3499,7 @@ service cloud.firestore {
                   <div className="kpi-info">
                     <span className="kpi-title">Sotilgan tovarlar</span>
                     <span className="kpi-value">
-                      {filteredActiveTransactions.reduce((sum, t) => sum + t.items.reduce((s, i) => s + i.qty, 0), 0)} dona
+                      {filteredActiveTransactions.reduce((sum, t) => sum + (t.items || []).reduce((s, i) => s + i.qty, 0), 0)} dona
                     </span>
                   </div>
                 </div>
@@ -3489,7 +3641,7 @@ service cloud.firestore {
                         </tr>
                       ) : (
                         filteredTransactions.map(t => {
-                          const totalItems = t.items.reduce((sum, item) => sum + item.qty, 0);
+                          const totalItems = (t.items || []).reduce((sum, item) => sum + item.qty, 0);
                           const isCancelled = t.status === 'cancelled';
                           const hasEditedPrice = t.items && t.items.some(item => item.originalPrice !== undefined && item.originalPrice !== item.price);
                           return (
